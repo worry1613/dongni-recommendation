@@ -97,3 +97,4 @@ ENV/
 .idea/modules.xml
 .idea/super-recommendation.iml
 .idea/workspace.xml
+/logSystem/ratings.dat
