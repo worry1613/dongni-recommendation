@@ -90,3 +90,9 @@ ENV/
 # Rope project settings
 .ropeproject
 
+.idea/encodings.xml
+.idea/markdown-navigator/
+.idea/misc.xml
+.idea/modules.xml
+.idea/super-recommendation.iml
+.idea/workspace.xml
