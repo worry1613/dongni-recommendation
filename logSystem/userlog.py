@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 """
     userlog.py
@@ -36,6 +37,7 @@ import pandas as pd
 import datetime
 import sys
 import redis  # 一定要安装hiredis不然操作redis会很慢
+import time
 
 SUCCESS = 1
 host = 0
@@ -57,7 +59,7 @@ def savetoredis(a, t='act'):
     if t == 'act':
         saveredisact(a, rc)
 
-    elif t == 'ratings':
+    elif t == 'rate':
         saveredisrating(a, rc)
     return 'OK'
 
@@ -90,7 +92,10 @@ def saveredisact(a, rc):
     每天每个行为所有用户记录，列表行式，返回所有有行为记录的用户的列表
     """
     r = rc.pipeline()
+    c = len(a)
+    i = 0
     for log in a:
+        i+=1
         r.set('%s:act%d:u%d:i%d' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
                                     log[actlogfeture['acttype']],
                                     log[actlogfeture['user']],
@@ -108,7 +113,12 @@ def saveredisact(a, rc):
         r.lpush('%s:act%d:users' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
                                     log[actlogfeture['acttype']]),
                 log[actlogfeture['user']])
+        s = '%d/%d [[%4.4d]]' % (i, c, float(i / c) * 100)
+        print(s, end='')
+        print('\b' * len(s), end='', flush=True)
+    print('execute...')
     r.execute()
+    print('OK')
     return SUCCESS
 
 
@@ -119,56 +129,59 @@ def saveredisrating(a, rc):
     :param rc:  redis
     :return:
     redis数据缓存，方便快读数据
-    2015-11-01:act2      :u4454   :i3598
-    日期       用户行为类型 用户标识   物品标识
+    2015-11-01:rate:u4454   :i3598
+    日期             用户标识   物品标识
     每天每个行为每个用户对每个物品记录rate，快速定位，有行为返回rate，没有行业返回NULL
 
-    2015-11-01:act2      :u4454
-    日期       用户行为类型 用户标识
+    2015-11-01:rate:u4454
+    日期            用户标识
     每天每个行为每个用户对所有物品记录，列表行式，返回所有[物品:rate]的列表
 
-    2015-11-01:act2      :i3598
-    日期       用户行为类型 物品标识
+    2015-11-01:rate:i3598
+    日期             物品标识
     每天每个行为所有用户对每个物品记录，列表行式，返回所有有行为记录的[用户:rate]的列表
 
-    2015-11-01:act2      :items
-    日期       用户行为类型
+    2015-11-01:rate:items
+    日期
     每天每个行为所有用户对所有物品记录，列表行式，返回所有有行为记录的[物品:用户:rate]的列表
 
-    2015-11-01:act2      :users
-    日期       用户行为类型
+    2015-11-01:rate:users
+    日期
     每天每个行为所有用户记录，列表行式，返回所有有行为记录的[用户:物品:rate]的列表
     """
     r = rc.pipeline()
+    c = len(a)
+    i = 0
     for log in a:
-        r.set('%s:act%d:u%d:i%d' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
-                                    log[actlogfeture['acttype']],
+        i+=1
+
+        r.set('%s:rate:u%d:i%d' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
                                     log[actlogfeture['user']],
                                     log[actlogfeture['item']]), log[actlogfeture['rate']])
 
-        r.lpush('%s:act%d:u%d' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
-                                  log[actlogfeture['acttype']],
+        r.lpush('%s:rate:u%d' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
                                   log[actlogfeture['user']]),
                 'i%d:%d' % (log[actlogfeture['item']], log[actlogfeture['rate']]))
 
-        r.lpush('%s:act%d:i%d' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
-                                  log[actlogfeture['acttype']],
+        r.lpush('%s:rate:i%d' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
                                   log[actlogfeture['item']]),
                 'u%d:%d' % (log[actlogfeture['user']], log[actlogfeture['rate']]))
 
-        r.lpush('%s:act%d:items' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
-                                    log[actlogfeture['acttype']]),
-
+        r.lpush('%s:rate:items' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),),
                 'i%d:u%d:%d' % (log[actlogfeture['item']],
                                 log[actlogfeture['user']],
                                 log[actlogfeture['rate']]))
 
-        r.lpush('%s:act%d:users' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),
-                                    log[actlogfeture['acttype']]),
+        r.lpush('%s:rate:users' % (datetime.datetime.today().date().strftime('%Y-%m-%d'),),
                 'u%d:i%d:%d' % (log[actlogfeture['user']],
                                 log[actlogfeture['item']],
                                 log[actlogfeture['rate']]))
+        s = '%d/%d [[%4.4d]]'%(i,c,float(i/c)*100)
+        print(s, end='')
+        print('\b' * len(s), end='',flush=True)
+    print('execute...')
     r.execute()
+    print('OK')
     return SUCCESS
 
 
@@ -215,7 +228,7 @@ def process_action(f, o=None, t=None, c=savetoredis):
             actions.append(users_items)
         np.save(o, actions)
     elif t in ['redis', 'hbase']:
-        c(fa)
+        c(fa,t='act')
     else:
         # f o 有甚少一个是空的
         return 'FILE IS NULL'
@@ -246,7 +259,7 @@ def process_rating(f, o=None, t=None, c=savetoredis):
         np.save(o, users_itemsrating)
 
     elif t in ['redis', 'hbase']:
-        c(fa)
+        c(fa,t='rate')
     else:
         # f o 有甚少一个是空的
         return 'FILE IS NULL'
@@ -298,13 +311,15 @@ if __name__ == '__main__':
             elif v == 'rate':
                 type = 'rate'
             else:
-                type = 'act'
+                print(usage)
+                exit()
+    print('in=%s,out=%s,r=%d,h=%d,profile=%s,type=%s'% (infile,outfile,r,h,dbprofile,type))
     cf = ConfigParser()
     if infile is not 0 and outfile is not 0:
         if type == 'act':
-            ret = process_action(infile, outfile)
+            ret = process_action(infile, outfile,t='file')
         else:
-            ret = process_rating(infile, outfile)
+            ret = process_rating(infile, outfile,t='file')
         print(ret)
     elif infile is not 0 and r is not 0 and dbprofile is not 0:
         cf.read(sys.path[0] + '/' + dbprofile)
@@ -319,4 +334,6 @@ if __name__ == '__main__':
         print(ret)
     elif infile is not 0 and h is not 0 and dbprofile is not 0:
         pass
+    else:
+        print(usage)
 
