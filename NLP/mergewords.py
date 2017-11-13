@@ -73,7 +73,6 @@ if __name__ == '__main__':
     -i files        要合并的字典文件，支持?,*通配符
     -o file         保存成文件，不写文件名用默认文件名，默认文件是words.txt
 
-
     mergewords.py  -i s*.txt t*.txt -o ~/stopword.txt
     合并/stop目录下s*.txt和t*.txt的所有文件，合并后的文件是~/stopword.txt
 
