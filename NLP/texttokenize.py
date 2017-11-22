@@ -56,12 +56,13 @@ def jiebakeyword(document, k=keyword):
     :return:             关键词列表
     """
     doc = []
+    i = keyword
     libs = lib.split('.')
-    for i in range(minword,keyword):
-        if 'tfidf' in libs:
-            doc.append(cutwordmodel.extract_tags(document, topK=i, withWeight=False, allowPOS=('ns', 'n')))
-        else:
-            doc.append(cutwordmodel.textrank(document, topK=i, allowPOS=('ns', 'n'), withWeight=False))
+    # for i in range(minword,keyword):
+    if 'tfidf' in libs:
+        doc.append(cutwordmodel.extract_tags(document, topK=i, withWeight=False, allowPOS=('ns', 'n')))
+    else:
+        doc.append(cutwordmodel.textrank(document, topK=i, allowPOS=('ns', 'n'), withWeight=False))
     return doc
 
 # 分词 - 中文
