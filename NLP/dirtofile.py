@@ -30,7 +30,7 @@ def getfilewords(f,type='line'):
     file = open('%s/%s' % (sys.path[0], f))
     try:
         docs = file.read()
-        doc = tran2UTF8(docs).replace("\n", "").replace('\r', '')
+        doc = tran2UTF8(docs).replace("\n", "").replace("\r", "")
     except:
         pass
     finally:
