@@ -27,6 +27,7 @@
     -t type         act或rate，默认是act
 
 """
+import sklearn as skl
 import math
 import json
 from configparser import ConfigParser
@@ -114,8 +115,8 @@ def saveredisact(a, rc):
                                     log[actlogfeture['acttype']]),
                 log[actlogfeture['user']])
         s = '%d/%d [[%4.4d]]' % (i, c, float(i / c) * 100)
-        print(s, end='')
-        print('\b' * len(s), end='', flush=True)
+        # print(s, end='')
+        # print('\b' * len(s), end='', flush=True)
     print('execute...')
     r.execute()
     print('OK')
@@ -177,8 +178,8 @@ def saveredisrating(a, rc):
                                 log[actlogfeture['item']],
                                 log[actlogfeture['rate']]))
         s = '%d/%d [[%4.4d]]'%(i,c,float(i/c)*100)
-        print(s, end='')
-        print('\b' * len(s), end='',flush=True)
+        # print(s, end='')
+        # print('\b' * len(s), end='',flush=True)
     print('execute...')
     r.execute()
     print('OK')

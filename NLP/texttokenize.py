@@ -40,9 +40,10 @@ outfile = None
 stopwordsfile = None
 # 输出关键词文件
 keywordfile = None
-keyword = 6
-minword = 3
-lib = 'jieba'
+keyword = 0
+minword = 0
+# lib = 'jieba'
+lib = ''
 stopwordlist = []
 
 cutwordmodel = jieba.analyse
@@ -66,14 +67,14 @@ def jiebakeyword(document, k=keyword):
     return doc
 
 # 分词 - 中文
-def tokenize_chinese(document, keyfunc):
+def tokenize_chinese(document, keyfunc=None):
     # type: (object, object) -> object
     try:
         keys = None
         if keyfunc is not None:
             keys = keyfunc(document, keyword)
-        for key in keys:
-            logging.info('key=%s' % (' '.join([w for w in key])))
+            for key in keys:
+                logging.info('key=%s' % (' '.join([w for w in key])))
         word_list = [doc for doc in jieba.cut(document.strip(), cut_all=False) if doc not in stopwordlist]
         return word_list, keys
     except Exception, e:
@@ -95,7 +96,7 @@ def getfilewords(f, type='line'):
         if 'jieba' in libs:
             wk = [tokenize_chinese(document=line,keyfunc=jiebakeyword) for line in lines]
         else:
-            pass
+            wk = [tokenize_chinese(document=line) for line in lines]
     elif type == 'file':
         wk = tokenize_chinese(document=docs.read().replace('\r\n', ''))
     docs.close()
@@ -136,7 +137,7 @@ if __name__ == '__main__':
         -i file         单一语料库文件，文件名默认为类型名，文件内每行默认为一个输入内容
         -o file         生成结果文件，默认为 输入文件名.tokenize.txt
         -s file         停用词文件
-        --keywords=关键词数量        生成关键词，默认8
+        --keywords=关键词数量        生成关键词，默认0
         --lib=开发库     jieba.tfidf,jeiba.textrank，默认jieba.tfidf
 
         texttokenize.py  -i s.txt  -s stopword.txt -o ~/s.tokenize.txt
@@ -182,12 +183,14 @@ if __name__ == '__main__':
     if infile is not None:
         # 单一文件语料内容
         words = getfilewords(infile)
-        # f = open(outfile, mode='w')
+        f = open(outfile, mode='w')
         f1 = open(keywordfile, mode='a+')
-        f1.write(' type %s \n' % (lib,))
+        # f1.write(' type %s \n' % (lib,))
         for wk in words:
-            for doc in wk[1]:
-                f1.write(' '.join([ words for words in doc]) + '\n')
+            f.write(' '.join([ words for words in wk[0]]) + '\n')
+            if wk[1] is not None:
+                f1.write(' '.join([ words for words in wk[1]]) + '\n')
         f1.close()
+        f.close()
     else:
         print(usage)
