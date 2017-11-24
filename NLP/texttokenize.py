@@ -75,8 +75,9 @@ def tokenize_chinese(document, n, keyfunc=None):
             keys = keyfunc(document, keyword)
             for key in keys:
                 logging.info('key=%s' % (' '.join([w for w in key])))
-        word_list = [doc for doc in jieba.cut(document.strip(), cut_all=False) if doc not in stopwordlist]
-        logging.info('line %d is OK' % (n,))
+        word_list = [doc.strip() for doc in jieba.cut(document.strip(), cut_all=False) if doc.strip() not in stopwordlist]
+        # logging.info('line %d is OK' % (n,))
+        logging.info('line %d == %s' % (n,'|'.join(word_list)))
         return word_list, keys
     except Exception, e:
         print traceback.print_exc()
