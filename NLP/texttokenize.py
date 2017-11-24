@@ -67,7 +67,7 @@ def jiebakeyword(document, k=keyword):
     return doc
 
 # 分词 - 中文
-def tokenize_chinese(document, keyfunc=None):
+def tokenize_chinese(document, n, keyfunc=None):
     # type: (object, object) -> object
     try:
         keys = None
@@ -76,6 +76,7 @@ def tokenize_chinese(document, keyfunc=None):
             for key in keys:
                 logging.info('key=%s' % (' '.join([w for w in key])))
         word_list = [doc for doc in jieba.cut(document.strip(), cut_all=False) if doc not in stopwordlist]
+        logging.info('line %d is OK' % (n,))
         return word_list, keys
     except Exception, e:
         print traceback.print_exc()
@@ -93,10 +94,11 @@ def getfilewords(f, type='line'):
     if type == 'line':
         libs = lib.split('.')
         lines = docs.readlines()
+        logging.info('%d lines ======' % (len(lines),))
         if 'jieba' in libs:
-            wk = [tokenize_chinese(document=line,keyfunc=jiebakeyword) for line in lines]
+            wk = [tokenize_chinese(document=line,n=k,keyfunc=jiebakeyword) for k,line in enumerate(lines)]
         else:
-            wk = [tokenize_chinese(document=line) for line in lines]
+            wk = [tokenize_chinese(document=line,n=k) for k,line in enumerate(lines)]
     elif type == 'file':
         wk = tokenize_chinese(document=docs.read().replace('\r\n', ''))
     docs.close()
@@ -184,7 +186,7 @@ if __name__ == '__main__':
         # 单一文件语料内容
         words = getfilewords(infile)
         f = open(outfile, mode='w')
-        f1 = open(keywordfile, mode='a+')
+        f1 = open(keywordfile, mode='w')
         # f1.write(' type %s \n' % (lib,))
         for wk in words:
             f.write(' '.join([ words for words in wk[0]]) + '\n')
