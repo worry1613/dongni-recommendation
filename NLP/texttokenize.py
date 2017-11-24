@@ -181,6 +181,7 @@ if __name__ == '__main__':
     keywordfile = genkeywordoutfile(infile,keywords='keyword.'+lib)
     logging.info('input=%s,\nstopwords=%s,\noutput=%s,\nkeywordfile=%s,\nkeyword=%d,lib=%s' %
                  (infile, stopwordsfile, outfile, keywordfile, keyword, lib))
+    logging.info('>>>>%s' % (' '.join(stopwordlist)))
     cutwordmodel.set_stop_words(stop_words_path=stopwordsfile)
 
     if infile is not None:
