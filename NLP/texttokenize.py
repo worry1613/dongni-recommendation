@@ -95,7 +95,7 @@ def tokenize_chinese(document, n, keyfunc=None):
             keys = keyfunc(document, keyword)
             for key in keys:
                 logging.info('key=%s' % (' '.join([w for w in key])))
-        word_list = [doc.strip() for doc in jieba.cut(document.strip(), cut_all=False) if doc.strip() not in stopwordlist]
+        word_list = [doc.strip() for doc in jieba.cut(document.strip(), cut_all=False)]
         logging.info('line %d is OK' % (n,))
         # logging.info('line %d == %s' % (n,'|'.join(word_list)))
         return word_list, keys
@@ -202,14 +202,15 @@ if __name__ == '__main__':
     words = []
     keys = []
     if stopwordsfile is not None:
-        stopwordlist = [line.replace('\r\n','').replace('\n','') for line in open(stopwordsfile).readlines()]
+        # stopwordlist = [line for line in open(stopwordsfile).read().splitlines()]
+        cutwordmodel.set_stop_words(stop_words_path=stopwordsfile)
     if outfile is None:
         outfile = genkeywordoutfile(infile)
     keywordfile = genkeywordoutfile(infile,keywords='keyword.'+lib)
     logging.info('input=%s,\nstopwords=%s,\noutput=%s,\nkeywordfile=%s,\nkeyword=%d,lib=%s' %
                  (infile, stopwordsfile, outfile, keywordfile, keyword, lib))
     logging.info('>>>>%s' % (' '.join(stopwordlist)))
-    cutwordmodel.set_stop_words(stop_words_path=stopwordsfile)
+
 
     if infile is not None:
         # 单一文件语料内容
