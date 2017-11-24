@@ -45,9 +45,29 @@ minword = 0
 # lib = 'jieba'
 lib = ''
 stopwordlist = []
-
+label = "__label__"
+textclass = ''
 cutwordmodel = jieba.analyse
 
+def getType(file):
+    """
+    返回类型名
+    :param file:    文件路径
+    :return:        主文件名
+    ./www/中文.txt   中文
+    中文.txt         中文
+    中文文件名        中文文件名
+    ./ww/中文文件名   中文文件名
+
+    """
+    ps = file.strip('').split('/')
+    fs = []
+    if len(ps) == 1:
+        fs = file.strip('').split('.')
+    elif len(ps) > 1:
+        fs = ps[-1].split('.')
+    if len(fs) >= 1:
+        return fs[0].strip()
 
 def jiebakeyword(document, k=keyword):
     """
@@ -76,8 +96,8 @@ def tokenize_chinese(document, n, keyfunc=None):
             for key in keys:
                 logging.info('key=%s' % (' '.join([w for w in key])))
         word_list = [doc.strip() for doc in jieba.cut(document.strip(), cut_all=False) if doc.strip() not in stopwordlist]
-        # logging.info('line %d is OK' % (n,))
-        logging.info('line %d == %s' % (n,'|'.join(word_list)))
+        logging.info('line %d is OK' % (n,))
+        # logging.info('line %d == %s' % (n,'|'.join(word_list)))
         return word_list, keys
     except Exception, e:
         print traceback.print_exc()
@@ -142,13 +162,16 @@ if __name__ == '__main__':
         -s file         停用词文件
         --keywords=关键词数量        生成关键词，默认0
         --lib=开发库     jieba.tfidf,jeiba.textrank，默认jieba.tfidf
+        --label=l       关键记和类别分隔符
+        --class=type    类别名   
 
         texttokenize.py  -i s.txt  -s stopword.txt -o ~/s.tokenize.txt
         texttokenize.py  -i ss.txt -s stopW.txt
         """
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "i:o:s:", ["input=", "output=", "stopwords=", "keywords=", "lib="])
+        opts, args = getopt.getopt(sys.argv[1:], "i:o:s:",
+                                   ["input=", "output=", "stopwords=", "keywords=", "lib=", "label=", "class="])
     except getopt.GetoptError:
         # print help information and exit:
         print(usage)
@@ -169,6 +192,10 @@ if __name__ == '__main__':
             keyword = v
         elif k in '--lib':
             lib = v
+        elif k in '--label':
+            label = v
+        elif k in '--class':
+            textclass = v
         elif k in ('-h', '--help'):
             print(usage)
 
@@ -187,11 +214,14 @@ if __name__ == '__main__':
     if infile is not None:
         # 单一文件语料内容
         words = getfilewords(infile)
+        textlabel = '\n'
+        if textclass !='' and label !='':
+            textlabel = '%s%s\n'%(label,textclass)
         f = open(outfile, mode='w')
         f1 = open(keywordfile, mode='w')
         # f1.write(' type %s \n' % (lib,))
         for wk in words:
-            f.write(' '.join([ words for words in wk[0]]) + '\n')
+            f.write(' '.join([ words for words in wk[0]]) + textlabel)
             if wk[1] is not None:
                 f1.write(' '.join([ words for words in wk[1]]) + '\n')
         f1.close()
