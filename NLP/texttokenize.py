@@ -175,7 +175,7 @@ if __name__ == '__main__':
     words = []
     keys = []
     if stopwordsfile is not None:
-        stopwordlist = open(stopwordsfile).read().split('\r\n')
+        stopwordlist = [line.replace('\r\n','').replace('\n','') for line in open(stopwordsfile).readlines()]
     if outfile is None:
         outfile = genkeywordoutfile(infile)
     keywordfile = genkeywordoutfile(infile,keywords='keyword.'+lib)
