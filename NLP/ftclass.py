@@ -102,7 +102,7 @@ def fasttext_classanalyze(mo,te):
 
 
 if __name__ == '__main__':
-    usage = """
+    usage = """  
             ftclass.py -r 训练数据集文件名 -t 测试数据集文件名 -m 模型文件名
 
             -r file        训练数据集文件名
