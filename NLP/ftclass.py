@@ -12,7 +12,6 @@ CSDN:
     -r file        训练数据集文件名
     -t file        测试数据集文件名
     -m file        模型文件名
-    -c class       类别名，用英文','隔开，分类显示统计结果是用，可选
     -l label       关键词和类别之间的分隔符，"__label__"
 
     ftclass.py  -r train.txt  -t test.txt -m model.bin -c a,b,c,d,e  -l __|||__
@@ -109,7 +108,6 @@ if __name__ == '__main__':
             -r file        训练数据集文件名
             -t file        测试数据集文件名
             -m file        模型文件名
-            -c class       类别名，用英文','隔开，分类显示统计结果是用，可选
             -l label       关键词和类别之间的分隔符，"__label__"
 
             ftclass.py  -r train.txt  -t test.txt -m model.bin -c a,b,c,d,e  -l __|||__
