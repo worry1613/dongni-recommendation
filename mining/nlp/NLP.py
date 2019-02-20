@@ -5,7 +5,7 @@
 # @CSDN   : http://blog.csdn.net/worryabout/
 
 
-class NLP:
+class nlp:
     """
     基类
     """
