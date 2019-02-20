@@ -36,7 +36,7 @@ class Keywords(nlp):
         if stopdict is not None:
             jieba.analyse.set_stop_words(stopdict)
 
-    def gen(self, fout=None):
+    def gen(self, fout=None, k=3):
         """
         生成关键词
         :param fout:
@@ -51,7 +51,7 @@ class Keywords(nlp):
         lines = docs.readlines()
         logging.info('%d lines ======' % (len(lines),))
         for line in lines:
-            self.result.append(jieba.analyse.textrank(line, topK=3, allowPOS=('ns', 'n'), withWeight=False))
+            self.result.append(jieba.analyse.textrank(line, topK=k, allowPOS=('ns', 'n'), withWeight=False))
         docs.close()
         logging.info('>>>>>>>>>>>>>')
         if fout:
@@ -77,5 +77,5 @@ if __name__ == '__main__':
     fin = ".//新闻min.txt"
     fout = ".//新闻关键词.txt"
     t = Keywords(fin)
-    t.gen(fout)
+    t.gen(fout,k=5)
     # t.save(fout)
