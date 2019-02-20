@@ -16,7 +16,7 @@ import logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 stopd = './/stop.dict'
 
-class Tokenize(nlp):
+class Fenci(nlp):
     """
     切词类，把语料库的文本内容切词
     """
@@ -84,6 +84,6 @@ class Tokenize(nlp):
 if __name__ == '__main__':
     fin = ".//新闻.txt"
     fout = ".//新闻切词.txt"
-    t = Tokenize(fin)
+    t = Fenci(fin)
     t.cut(fout)
     # t.save(fout)
