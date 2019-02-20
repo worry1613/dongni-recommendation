@@ -42,9 +42,9 @@ if __name__ == '__main__':
     file_model_200 = '/Users/wangrui/百度云同步盘/中文语料库/THUCNews/last_THUCNews_gensim_w2v_200.bin'
     w = W2v(file_txt)
     logging.info('<<<<<<<<<<<<<<<<')
-    w.process(size=50)
+    w.process(size=10)
     logging.info('>>>>>>>>>>>>>>>>')
-    w.save('.//last_THUCNews_gensim_w2v_64.bin')
+    w.save('.//last_THUCNews_gensim_w2v_10.bin')
 
 
     print '"家装" 和 "家居" 的相似度:' + str(w.model.similarity(u'家装', u'家居'))
