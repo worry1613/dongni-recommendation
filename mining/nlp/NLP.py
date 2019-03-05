@@ -5,7 +5,7 @@
 # @CSDN   : http://blog.csdn.net/worryabout/
 
 
-class nlp:
+class nlp(object):
     """
     基类
     """
