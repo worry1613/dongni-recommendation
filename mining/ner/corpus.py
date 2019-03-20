@@ -3,6 +3,8 @@
 # @作者    : worry1613(549145583@qq.com)
 # GitHub  : https://github.com/worry1613
 # @CSDN   : http://blog.csdn.net/worryabout/
+import random
+
 from config import get_config
 from util import q_to_b
 import os, sys
@@ -38,14 +40,16 @@ class Corpus:
 
         # self.save_corpus(data='\n'.join(self.lines).encode('utf-8'), file_path=fout)
 
-    def save_corpus(self, data, file_path):
+    def save_corpus(self, file_path, data=None):
         """
         写语料
         """
+        d = ''
         if data is None:
-            data = '\n'.join(self.lines).encode('utf-8')
+            d = '\n'.join(['  '.join(line) for line in self.lines]).encode('utf-8')
+
         f = open(file_path, 'w')
-        f.write(data)
+        f.write(d)
         f.close()
 
     def load_corpus(self, file_path):
@@ -56,6 +60,16 @@ class Corpus:
         lines = f.readlines()
         f.close()
         return lines
+
+    def load_corpus_processed(self, file_path):
+        """
+        读取已经处理完毕语料
+        """
+        f = open(file_path, 'r')
+        lines = f.readlines()
+        f.close()
+        self.lines = [line.strip().decode('utf-8').split('  ') for line in lines]
+        return
 
     def process_time(self, words):
         """
@@ -72,7 +86,8 @@ class Corpus:
                 new_words.append(word)
             else:
                 new_words.append(word)
-
+        if temp:
+            new_words.append(temp)
         return new_words
 
     def process_person(self, words):
@@ -121,16 +136,31 @@ class Corpus:
         """
         标注数据
         """
-        new_words = []
-        temp = ''
-        words_seq =[[word.split('/')[0] for word in line] for line in self.lines ]       #词
-        pos_seq =[[word.split('/')[1] for word in line] for line in self.lines ]        #词性
-        tags_seq =[[ self._maps.get(p) if p in self._maps else 'O' for p in pos] for pos in pos_seq ]        #词标签  ns,nt,t,nr
+        if words is None:
+            words = self.lines
+        words_seq =[[word.split('/')[0] for word in line] for line in words ]       #词
+        pos_seq =[[word.split('/')[1] for word in line] for line in words ]        #词性
+        tags_seq =[[self._maps.get(p) if p in self._maps else 'O' for p in pos] for pos in pos_seq ]        #词标签  ns,nt,t,nr
 
-        self.tag_BIO_pos(words_seq,pos_seq,tags_seq)
+        return self.tag_BIO_pos(words_seq,pos_seq,tags_seq)
 
     def split_train(self,ra=.7):
-        pass
+        """
+        切分训练测试数据集
+        :param ra: 训练数据比例 默认0.7
+        :return:
+        """
+        l = len(self.lines)
+        a = [i for i in range(l)]
+        testl = random.sample(a,int(l*(1-ra)))
+        train = []
+        test = []
+        for n in a:
+            if n in testl:
+                test.append(self.lines[n])
+            else:
+                train.append(self.lines[n])
+        return train,test
 
     def tag_BIO_pos(self,wordsq,posq,tagsq):
         posq = [[[posq[index][i] for _ in range(len(wordsq[index][i]))]
@@ -143,13 +173,13 @@ class Corpus:
         pq = []
         posq = [[t for p in pos for t in p] for pos in posq]
         for pos in posq:
-            pq.extend(pos+[' '])
+            pq.extend(pos+[''])
         tagsq = [[t for tag in tags for t in tag] for tags in tagsq]
         for tags in tagsq:
-            tq.extend(tags+[' '])
+            tq.extend(tags+[''])
         wordsq = [[t for word in words for t in word] for words in wordsq]
         for words in wordsq:
-            wq.extend(words+[' '])
+            wq.extend(words+[''])
         lines = ['%s\t%s\t%s' % (w,p,t) for w,p,t in zip(wq,pq,tq)]
         return lines
 
@@ -164,10 +194,28 @@ class Corpus:
         else:
             return tag
 
+    def build_test(self,wordsq):
+        return self.process_seq(words=wordsq)
 
 
 if __name__ == '__main__':
+
+    def save(f, d):
+        fin = open(f, 'w')
+        fin.write('\n'.join(d))
+        fin.close()
+
+
     corpus = Corpus()
-    corpus.pre_process('data/rmrb199801.txt')
+    # corpus.pre_process('data/rmrb199801.txt')
     # corpus.save_corpus(file_path='data/rmrb.txt')
-    corpus.process_seq()
+    corpus.load_corpus_processed(file_path='data/rmrb.txt')
+    ra = 0.7
+    for i in range(1):
+        tr,te = corpus.split_train(ra)
+        tr_text = corpus.process_seq(tr)
+        te_text = corpus.build_test(te)
+        tr_file = 'train_%s_%s.txt' % (str(ra),i)
+        te_file = 'test_%s_%s.txt' % (str(1-ra),i)
+        save(tr_file,tr_text)
+        save(te_file,te_text)
