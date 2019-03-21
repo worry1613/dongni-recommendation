@@ -3,6 +3,7 @@
 # @作者    : worry1613(549145583@qq.com)
 # GitHub  : https://github.com/worry1613
 # @CSDN   : http://blog.csdn.net/worryabout/
+import getopt
 import random
 
 from config import get_config
@@ -142,7 +143,8 @@ class Corpus:
         pos_seq =[[word.split('/')[1] for word in line] for line in words ]        #词性
         tags_seq =[[self._maps.get(p) if p in self._maps else 'O' for p in pos] for pos in pos_seq ]        #词标签  ns,nt,t,nr
 
-        return self.tag_BIO_pos(words_seq,pos_seq,tags_seq)
+        return self.tag_BIO(words_seq,pos_seq,tags_seq)
+        # return self.tag_BIO_pos(words_seq,pos_seq,tags_seq)
 
     def split_train(self,ra=.7):
         """
@@ -180,7 +182,21 @@ class Corpus:
         wordsq = [[t for word in words for t in word] for words in wordsq]
         for words in wordsq:
             wq.extend(words+[''])
-        lines = ['%s\t%s\t%s' % (w,p,t) for w,p,t in zip(wq,pq,tq)]
+        lines = ['' if w==p==t=='' else '%s %s %s' % (w,p,t) for w,p,t in zip(wq,pq,tq)]
+        return lines
+
+    def tag_BIO(self,wordsq,posq,tagsq):
+        tagsq = [[[self.tag_perform_bio(tagsq[index][i], w) for w in range(len(wordsq[index][i]))]
+                     for i in range(len(tagsq[index]))] for index in range(len(tagsq))]
+        wq = []
+        tq = []
+        tagsq = [[t for tag in tags for t in tag] for tags in tagsq]
+        for tags in tagsq:
+            tq.extend(tags+[''])
+        wordsq = [[t for word in words for t in word] for words in wordsq]
+        for words in wordsq:
+            wq.extend(words+[''])
+        lines = ['' if w==t=='' else '%s %s' % (w,t) for w,t in zip(wq,tq)]
         return lines
 
     def tag_perform_bio(self, tag, index):
@@ -199,7 +215,50 @@ class Corpus:
 
 
 if __name__ == '__main__':
+    usage = """  
+                corpus.py -r 训练数据集文件名 -t 测试数据集文件名 -m 模型文件名
 
+                -i file        原始已经标注语料库文件名
+                -o file        保存合成后处理完成语料库文件名
+                -l file        合成后处理完成语料库文件名, 与i ,o 选项互斥
+                -c num         循环生成训练测试数据集次数，用于交叉验证，默认1,最大10
+                -r ratio       测试数据占比，默认0.3
+                -f format      训练数据集成生格式，默认bio,bio,bio_pos,bmewo,bmewo_pos
+
+                生成已经标注后的语料库rmrb.txt, 生成一个训练测试数据集，测试数据占比0.3，数据集格式bio
+                corpus.py  -i rmrb199801.txt  -o rmrb.txt 
+                生成已经标注后的语料库rmrb.txt, 生成3个训练测试数据集，测试数据占比0.2，数据集格式bio
+                corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 3 -r 0.2  
+                载入已经标注后的语料库rmrb.txt, 生成3个训练测试数据集，测试数据占比0.2，数据集格式bio
+                corpus.py  -l rmrb.txt -c 3 -r 0.2  
+                生成已经标注后的语料库rmrb.txt, 生成4个训练测试数据集，测试数据占比0.25，数据集格式bio_pos
+                corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 4 -r 0.25 -f bio_pos  
+                生成已经标注后的语料库rmrb.txt, 生成2个训练测试数据集，测试数据占比0.15，数据集格式bmewo_pos
+                corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 2 -r 0.15 -f bmewo_pos  
+                """
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "r:t:m:c:l", ["train=", "test=", "model=", "class=", "label="])
+    except getopt.GetoptError:
+        # print help information and exit:
+        print(usage)
+        exit()
+    if len(opts) == 0:
+        print(usage)
+        exit()
+    for k, v in opts:
+        if k in ('-r', '--train'):
+            if v != '':
+                ftrain = v
+        elif k in ('-t', '--test'):
+            ftest = v
+        elif k in ('-m', '--model'):
+            fmodel = v
+        elif k in ('-c', '--class'):
+            types = v.split(',')
+        elif k in ('-l', '--label'):
+            label = v
+        elif k in ('-h', '--help'):
+            print(usage)
     def save(f, d):
         fin = open(f, 'w')
         fin.write('\n'.join(d))
@@ -211,11 +270,11 @@ if __name__ == '__main__':
     # corpus.save_corpus(file_path='data/rmrb.txt')
     corpus.load_corpus_processed(file_path='data/rmrb.txt')
     ra = 0.7
-    for i in range(1):
+    for i in range(3):
         tr,te = corpus.split_train(ra)
         tr_text = corpus.process_seq(tr)
         te_text = corpus.build_test(te)
-        tr_file = 'train_%s_%s.txt' % (str(ra),i)
-        te_file = 'test_%s_%s.txt' % (str(1-ra),i)
+        tr_file = 'model/train_bio_%s_%s.txt' % (str(ra),i)
+        te_file = 'model/test_bio_%s_%s.txt' % (str(1-ra),i)
         save(tr_file,tr_text)
         save(te_file,te_text)
