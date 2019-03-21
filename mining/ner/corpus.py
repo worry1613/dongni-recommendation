@@ -204,9 +204,10 @@ class Corpus:
         标签使用BIO模式
         """
         if index == 0 and tag != u'O':
-            return u'B_{}'.format(tag)
+            return u'B'
+            # return u'B_{}'.format(tag)
         elif tag != u'O':
-            return u'I_{}'.format(tag)
+            return u'I'
         else:
             return tag
 
@@ -250,7 +251,7 @@ if __name__ == '__main__':
     fout = None
     fload_formated = None
     tms = 1
-    ratio = 0.3
+    ratio = 0.7
     dformat = 'bio'
     for k, v in opts:
         if k in ('-i', '--input'):
