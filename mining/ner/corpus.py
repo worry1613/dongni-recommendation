@@ -133,7 +133,7 @@ class Corpus:
 
         return new_words
 
-    def process_seq(self, words=None):
+    def process_seq(self, words=None,keyfunc=None):
         """
         标注数据
         """
@@ -143,7 +143,7 @@ class Corpus:
         pos_seq =[[word.split('/')[1] for word in line] for line in words ]        #词性
         tags_seq =[[self._maps.get(p) if p in self._maps else 'O' for p in pos] for pos in pos_seq ]        #词标签  ns,nt,t,nr
 
-        return self.tag_BIO(words_seq,pos_seq,tags_seq)
+        return keyfunc(words_seq,pos_seq,tags_seq)
         # return self.tag_BIO_pos(words_seq,pos_seq,tags_seq)
 
     def split_train(self,ra=.7):
@@ -210,8 +210,8 @@ class Corpus:
         else:
             return tag
 
-    def build_test(self,wordsq):
-        return self.process_seq(words=wordsq)
+    def build_test(self,wordsq,keyfunc):
+        return self.process_seq(words=wordsq,keyfunc=keyfunc)
 
 
 if __name__ == '__main__':
@@ -222,22 +222,22 @@ if __name__ == '__main__':
                 -o file        保存合成后处理完成语料库文件名
                 -l file        合成后处理完成语料库文件名, 与i ,o 选项互斥
                 -c num         循环生成训练测试数据集次数，用于交叉验证，默认1,最大10
-                -r ratio       测试数据占比，默认0.3
+                -r ratio       训练数据占比，默认0.7
                 -f format      训练数据集成生格式，默认bio,bio,bio_pos,bmewo,bmewo_pos
 
-                生成已经标注后的语料库rmrb.txt, 生成一个训练测试数据集，测试数据占比0.3，数据集格式bio
+                生成已经标注后的语料库rmrb.txt, 生成一个训练测试数据集，测试数据占比0.7，数据集格式bio
                 corpus.py  -i rmrb199801.txt  -o rmrb.txt 
-                生成已经标注后的语料库rmrb.txt, 生成3个训练测试数据集，测试数据占比0.2，数据集格式bio
-                corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 3 -r 0.2  
-                载入已经标注后的语料库rmrb.txt, 生成3个训练测试数据集，测试数据占比0.2，数据集格式bio
-                corpus.py  -l rmrb.txt -c 3 -r 0.2  
-                生成已经标注后的语料库rmrb.txt, 生成4个训练测试数据集，测试数据占比0.25，数据集格式bio_pos
-                corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 4 -r 0.25 -f bio_pos  
-                生成已经标注后的语料库rmrb.txt, 生成2个训练测试数据集，测试数据占比0.15，数据集格式bmewo_pos
-                corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 2 -r 0.15 -f bmewo_pos  
+                生成已经标注后的语料库rmrb.txt, 生成3个训练测试数据集，测试数据占比0.8，数据集格式bio
+                corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 3 -r 0.8  
+                载入已经标注后的语料库rmrb.txt, 生成3个训练测试数据集，测试数据占比0.8，数据集格式bio
+                corpus.py  -l rmrb.txt -c 3 -r 0.8  
+                生成已经标注后的语料库rmrb.txt, 生成4个训练测试数据集，测试数据占比0.75，数据集格式bio_pos
+                corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 4 -r 0.75 -f bio_pos  
+                生成已经标注后的语料库rmrb.txt, 生成2个训练测试数据集，测试数据占比0.85，数据集格式bmewo_pos
+                corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 2 -r 0.85 -f bmewo_pos  
                 """
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "r:t:m:c:l", ["train=", "test=", "model=", "class=", "label="])
+        opts, args = getopt.getopt(sys.argv[1:], "i:o:l:c:r:f", ["input=", "output=", "load=", "ci=", "ratio=", "format="])
     except getopt.GetoptError:
         # print help information and exit:
         print(usage)
@@ -245,36 +245,55 @@ if __name__ == '__main__':
     if len(opts) == 0:
         print(usage)
         exit()
+
+    fin = None
+    fout = None
+    fload_formated = None
+    tms = 1
+    ratio = 0.3
+    dformat = 'bio'
     for k, v in opts:
-        if k in ('-r', '--train'):
+        if k in ('-i', '--input'):
             if v != '':
-                ftrain = v
-        elif k in ('-t', '--test'):
-            ftest = v
-        elif k in ('-m', '--model'):
-            fmodel = v
-        elif k in ('-c', '--class'):
-            types = v.split(',')
-        elif k in ('-l', '--label'):
-            label = v
-        elif k in ('-h', '--help'):
-            print(usage)
+                fin = v
+        elif k in ('-o', '--output'):
+            fout = v
+        elif k in ('-l', '--load'):
+            fload_formated = v
+        elif k in ('-c', '--ci'):
+            tms = int(v)
+        elif k in ('-r', '--ratio'):
+            ratio = float(v)
+        elif k in ('-f', '--format'):
+            dformat = v
+    if fin and fload_formated:
+        print(usage)
+        exit()
+    corpus = Corpus()
+    fmap = {'bio': corpus.tag_BIO,
+            'bio_pos': corpus.tag_BIO_pos,
+            # 'bmewo': corpus.tag_BMEWO,
+            # 'bmewo_pos': corpus.tag_BMEWO_pos
+            }
+
+    if fload_formated:
+        corpus.load_corpus_processed(file_path=fload_formated)
+    else:
+        corpus.pre_process(fin)
+        if fout:
+            corpus.save_corpus(file_path=fout)
+
     def save(f, d):
         fin = open(f, 'w')
         fin.write('\n'.join(d))
         fin.close()
 
-
-    corpus = Corpus()
-    # corpus.pre_process('data/rmrb199801.txt')
-    # corpus.save_corpus(file_path='data/rmrb.txt')
-    corpus.load_corpus_processed(file_path='data/rmrb.txt')
-    ra = 0.7
-    for i in range(3):
+    ra = ratio
+    for i in range(tms):
         tr,te = corpus.split_train(ra)
-        tr_text = corpus.process_seq(tr)
-        te_text = corpus.build_test(te)
-        tr_file = 'model/train_bio_%s_%s.txt' % (str(ra),i)
-        te_file = 'model/test_bio_%s_%s.txt' % (str(1-ra),i)
+        tr_text = corpus.process_seq(tr,fmap.get(dformat))
+        te_text = corpus.build_test(te,fmap.get(dformat))
+        tr_file = 'model/train_%s_%s_%s.txt' % (dformat,str(ra),i)
+        te_file = 'model/test_%s_%s_%s.txt' % (dformat,str(1-ra),i)
         save(tr_file,tr_text)
         save(te_file,te_text)
