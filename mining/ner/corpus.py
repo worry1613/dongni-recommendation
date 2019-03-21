@@ -30,7 +30,7 @@ class Corpus:
         lines = self.load_corpus(fin)
         self.lines = []
         for line in lines:
-            words = q_to_b(line.decode('utf-8').strip()).split('  ')[1:]  # 全角转半角
+            words = [word for word in q_to_b(line.decode('utf-8').strip()).split(' ')[1:] if word] # 全角转半角
             if len(words) <=0:
                 continue
             new_words = self.process_time(words)  # 处理时间
@@ -204,10 +204,9 @@ class Corpus:
         标签使用BIO模式
         """
         if index == 0 and tag != u'O':
-            return u'B'
-            # return u'B_{}'.format(tag)
+            return u'B-{}'.format(tag)
         elif tag != u'O':
-            return u'I'
+            return u'I-{}'.format(tag)
         else:
             return tag
 
@@ -224,7 +223,7 @@ if __name__ == '__main__':
                 -l file        合成后处理完成语料库文件名, 与i ,o 选项互斥
                 -c num         循环生成训练测试数据集次数，用于交叉验证，默认1,最大10
                 -r ratio       训练数据占比，默认0.7
-                -f format      训练数据集成生格式，默认bio,bio,bio_pos,bmewo,bmewo_pos
+                -f dataformat  训练数据集成生格式，默认bio,bio,bio_pos,bmewo,bmewo_pos
 
                 生成已经标注后的语料库rmrb.txt, 生成一个训练测试数据集，测试数据占比0.7，数据集格式bio
                 corpus.py  -i rmrb199801.txt  -o rmrb.txt 
@@ -238,7 +237,7 @@ if __name__ == '__main__':
                 corpus.py  -i rmrb199801.txt  -o rmrb.txt -c 2 -r 0.85 -f bmewo_pos  
                 """
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "i:o:l:c:r:f", ["input=", "output=", "load=", "ci=", "ratio=", "format="])
+        opts, args = getopt.getopt(sys.argv[1:], "i:o:l:c:r:f:h", ["input=", "output=", "load=", "ci=", "ratio=", "dataformat=","help="])
     except getopt.GetoptError:
         # print help information and exit:
         print(usage)
@@ -265,8 +264,11 @@ if __name__ == '__main__':
             tms = int(v)
         elif k in ('-r', '--ratio'):
             ratio = float(v)
-        elif k in ('-f', '--format'):
+        elif k in ('-f', '--dataformat'):
             dformat = v
+        elif k in ('-h', '--help'):
+            print(usage)
+            exit()
     if fin and fload_formated:
         print(usage)
         exit()
