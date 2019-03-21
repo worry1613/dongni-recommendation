@@ -185,8 +185,43 @@ class Corpus:
         lines = ['' if w==p==t=='' else '%s %s %s' % (w,p,t) for w,p,t in zip(wq,pq,tq)]
         return lines
 
+    def tag_BMEWO_pos(self,wordsq,posq,tagsq):
+        posq = [[[posq[index][i] for _ in range(len(wordsq[index][i]))]
+                    for i in range(len(posq[index]))]
+                   for index in range(len(posq))]
+        tagsq = [[[self.tag_perform_bio(tagsq[index][i], w) for w in range(len(wordsq[index][i]))]
+                     for i in range(len(tagsq[index]))] for index in range(len(tagsq))]
+        wq = []
+        tq = []
+        pq = []
+        posq = [[t for p in pos for t in p] for pos in posq]
+        for pos in posq:
+            pq.extend(pos+[''])
+        tagsq = [[t for tag in tags for t in tag] for tags in tagsq]
+        for tags in tagsq:
+            tq.extend(tags+[''])
+        wordsq = [[t for word in words for t in word] for words in wordsq]
+        for words in wordsq:
+            wq.extend(words+[''])
+        lines = ['' if w==p==t=='' else '%s %s %s' % (w,p,t) for w,p,t in zip(wq,pq,tq)]
+        return lines
+
     def tag_BIO(self,wordsq,posq,tagsq):
         tagsq = [[[self.tag_perform_bio(tagsq[index][i], w) for w in range(len(wordsq[index][i]))]
+                     for i in range(len(tagsq[index]))] for index in range(len(tagsq))]
+        wq = []
+        tq = []
+        tagsq = [[t for tag in tags for t in tag] for tags in tagsq]
+        for tags in tagsq:
+            tq.extend(tags+[''])
+        wordsq = [[t for word in words for t in word] for words in wordsq]
+        for words in wordsq:
+            wq.extend(words+[''])
+        lines = ['' if w==t=='' else '%s %s' % (w,t) for w,t in zip(wq,tq)]
+        return lines
+
+    def tag_BMEWO(self,wordsq,posq,tagsq):
+        tagsq = [[[self.tag_perform_bmewo(tagsq[index][i], w,len(wordsq[index][i])) for w in range(len(wordsq[index][i]))]
                      for i in range(len(tagsq[index]))] for index in range(len(tagsq))]
         wq = []
         tq = []
@@ -207,6 +242,19 @@ class Corpus:
             return u'B-{}'.format(tag)
         elif tag != u'O':
             return u'I-{}'.format(tag)
+        else:
+            return tag
+
+    def tag_perform_bmewo(self, tag, index, mmax):
+        """
+        标签使用BIO模式
+        """
+        if index == 0 and tag != u'O':
+            return u'B-{}'.format(tag)
+        elif tag != u'O' and 0 < index and index <mmax-1:
+            return u'M-{}'.format(tag)
+        elif tag != u'O' and index == mmax-1:
+            return u'E-{}'.format(tag)
         else:
             return tag
 
@@ -275,8 +323,8 @@ if __name__ == '__main__':
     corpus = Corpus()
     fmap = {'bio': corpus.tag_BIO,
             'bio_pos': corpus.tag_BIO_pos,
-            # 'bmewo': corpus.tag_BMEWO,
-            # 'bmewo_pos': corpus.tag_BMEWO_pos
+            'bmewo': corpus.tag_BMEWO,
+            'bmewo_pos': corpus.tag_BMEWO_pos
             }
 
     if fload_formated:
