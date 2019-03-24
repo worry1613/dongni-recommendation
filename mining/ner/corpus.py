@@ -6,7 +6,6 @@
 import getopt
 import random
 
-from config import get_config
 from util import q_to_b
 import os, sys
 

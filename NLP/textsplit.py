@@ -6,14 +6,13 @@
 # CSDN:
 #
 # 切分训练和测试数据集
-# textsplit.py -i 语料文件名 -s 停用词文件 -n 切分比例
+# textsplit.py -i 语料文件名  -n 切分比例
 #
 #        -i file         单一语料库文件，文件名默认为类型名，文件内每行默认为一个输入内容
-#        -s file         停用词文件
 #        -n split        切分比例，多个用逗号分开,
 #
-#        textsplit.py  -i s.txt  -s stopword.txt -n 15
-#        textsplit.py  -i ss.txt -s stopW.txt -n 15,25,30
+#        textsplit.py  -i s.txt  -n 15
+#        textsplit.py  -i ss.txt -n 15,25,30
 import copy
 import getopt
 import random
@@ -35,55 +34,6 @@ stopwordlist = []
 txtType = None
 label = "__label__"
 nc = 0
-
-def getType(file):
-    """
-    返回类型名
-    :param file:    文件路径
-    :return:        主文件名
-    ./www/中文.txt   中文
-    中文.txt         中文
-    中文文件名        中文文件名
-    ./ww/中文文件名   中文文件名
-
-    """
-    ps = file.strip('').split('/')
-    fs = []
-    if len(ps) == 1:
-        fs = file.strip('').split('.')
-    elif len(ps) > 1:
-        fs = ps[-1].split('.')
-    if len(fs) >= 1:
-        return fs[0].strip()
-
-# 分词 - 中文
-def tokenize_chinese(document, n):
-    # type: (object, object) -> object
-    try:
-        word_list = [doc for doc in jieba.cut(document.strip(), cut_all=False) if doc not in stopwordlist]
-        # nc+=1
-        logging.info('line %d is OK' % (n,))
-        return word_list, keys
-    except Exception, e:
-        print traceback.print_exc()
-
-def getfilewords(f, type='line'):
-    """
-    操作语料文件
-    :param f:     文件名
-    :param type:  操作类型，line-文件每行一个语料，file-文件全部内容是一个语料
-    :return:    words
-    """
-    wk = []
-    docs = open(f)
-    if type == 'line':
-        lines = docs.readlines()
-        logging.info('%d lines ======'% (len(lines),))
-        wk = [tokenize_chinese(document=line,n=k) for k,line in enumerate(lines)]
-    elif type == 'file':
-        wk = tokenize_chinese(document=docs.read().replace('\r\n', ''))
-    docs.close()
-    return wk
 
 def genkeywordoutfile(f, keywords='tokenize'):
     """
@@ -115,18 +65,16 @@ def genkeywordoutfile(f, keywords='tokenize'):
 
 if __name__ == '__main__':
     usage = """
-        textsplit.py -i 语料文件名 -s 停用词文件 -n 切分比例
+        textsplit.py -i 语料文件名 -n 切分比例
 
         -i file         单一语料库文件，文件名默认为类型名，文件内每行默认为一个输入内容
-        -s file         停用词文件
         -n split        切分比例，多个用逗号分开
-        -l label        分割标志符
         
-        textsplit.py  -i s.txt  -s stopword.txt -n 15
-        textsplit.py  -i ss.txt -s stopW.txt -n 15,25,30
+        textsplit.py  -i s.txt  -n 15
+        textsplit.py  -i ss.txt -n 15,25,30
         """
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "i:n:s:l:", ["input=", "split=", "stopwords=", "label="])
+        opts, args = getopt.getopt(sys.argv[1:], "i:n:", ["input=", "split="])
     except getopt.GetoptError:
         # print help information and exit:
         print(usage)
@@ -141,25 +89,16 @@ if __name__ == '__main__':
                 infile = v
         elif k in ('-n', '--split'):
             split = v.split(',')
-        elif k in ('-l', '--label'):
-            label = v.strip()
-        elif k in ('-s', '--stopwords'):
-            stopwordsfile = v
         elif k in ('-h', '--help'):
             print(usage)
-    txtType = getType(infile)
-    words = []
-    keys = []
-    if stopwordsfile is not None:
-        stopwordlist = open(stopwordsfile).read().split('\r\n')
-
     nC = 0
     if infile is not None:
         # 单一文件语料内容
-        docs = getfilewords(infile)
+        docs = open(infile).read().splitlines()
         C = len(docs)
-        n = 1
+
         for k,sp in enumerate(split):
+            n = 0
             try:
                 sp = int(sp)
             except:
@@ -176,15 +115,14 @@ if __name__ == '__main__':
                 wf1 = copy.deepcopy(docs)
                 wf2 = []
                 wi = random.sample(range(0,C), int(C * sp / 100))
-                for i in wi:
-                    f1.write(' '.join([words for words in wf1[i][0]]) + '%s%s\n' % (label,txtType))
-                    logging.info('%s == %d' %(file1,i))
+                for line in docs:
+                    if n in wi:
+                        f1.write(line+'\n')
+                    else:
+                        f2.write(line+'\n')
+                    n+=1
+                    logging.info('%d--' % (n,))
                 f1.close()
-                for i in sorted(wi,reverse=True):
-                    del wf1[i]
-
-                for wf in wf1:
-                    f2.write(' '.join([words for words in wf[0]]) + '%s%s\n' % (label,txtType))
                 f2.close()
                 logging.info('== == == == == == == == == == ==')
     else:
