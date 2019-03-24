@@ -129,4 +129,4 @@ if __name__ == '__main__':
         lines = f.readlines()
         f.close()
         for text in lines:
-            print(dmap.get(df)(tagger, text))
+            print(dmap.get(df)(tagger, text.strip()))
