@@ -3,6 +3,7 @@
 # @作者    : worry1613(549145583@qq.com)
 # GitHub  : https://github.com/worry1613
 # @CSDN   : http://blog.csdn.net/worryabout/
+import datetime
 import getopt
 import os
 import pickle
@@ -10,12 +11,14 @@ import pickle
 from simhash import Simhash
 import sys
 
+# reload(sys)
+# sys.setdefaultencoding('utf8')
 
 class SimhashBig(object):
     def __init__(self):
         self.hm = 3
-        self.values = [{}, {}, {}, {}]
-        self.valuesC = 0
+        self.values = [{}, {}, {}, {}, set()]
+        # self.valuesC = 0
         self.mask = 0b1111111111111111
 
     def turn(self, v):
@@ -23,7 +26,7 @@ class SimhashBig(object):
         for i in range(4, 0, -1):
             r[i - 1] = v & self.mask
             v >>= 16
-        r.reverse()
+        # r.reverse()
         return r
 
     def save(self, v):
@@ -32,14 +35,15 @@ class SimhashBig(object):
         :param v:    数值
         :return:
         """
-        value =v
-        for i in range(4,0,-1):
+        value = v
+        for i in range(4, 0, -1):
             a = v & self.mask
-            if a in self.values[i-1].keys():
-                self.values[i-1][a].add(value)
+            if a in self.values[i - 1].keys():
+                self.values[i - 1][a].add(value)
             else:
-                self.values[i-1][a] = {value}
+                self.values[i - 1][a] = {value}
             v >>= 16
+        self.values[-1].add(value)
 
     def find(self, v):
         """
@@ -50,28 +54,30 @@ class SimhashBig(object):
         hm = 0
         vm = self.turn(v)
         rm = [None, None, None, None]
+        # vl = set()
         for k, m in enumerate(vm):
             if m in self.values[k].keys():
                 rm[k] = m
+                # vl |= self.values[k][m]
         hm_max = 0
-        if rm.count(None) == len(rm):
-            return False
-
+        rmNone = rm.count(None)
+        if rmNone == 4:
+            # 4个都没有命中，最少有4位不一位，肯定没有
+            return (0,0)
+        elif rmNone == 0:
+            # 4个全命中，已经有一样的
+            return (1,0)
+        keyspass = set()
         for kr, r in enumerate(rm):
             if r:
-                for key in self.values[kr].keys():
-                    hm_t = self.hamming_distance(vm[kr], key)
-                    if hm_max <= hm_t:
-                        hm_max = hm_t
-                        if hm_max > self.hm:
-                            return False
-                hm += hm_max
-                if hm > self.hm:
-                    return False
-        if hm <= self.hm:
-            return True
-        else:
-            return False
+                keys = list(self.values[kr][r])
+                for key in keys:
+                    if key not in keyspass:
+                        hm_t = self.hamming_distance(v, key)
+                        if hm_t <= self.hm:
+                            return (1,len(keys))
+                keyspass|=set(keys)
+        return (0,len(keyspass))
 
     def hamming_distance(self, o, v):
         """
@@ -87,23 +93,26 @@ class SimhashBig(object):
             x &= x - 1
         return tot
 
-    def imports(self, fout):
+    def imports(self, fin):
         """
         装载values文件
         :param f:
         :return:
         """
-        with open(fout, 'w') as f:
-            pickle.dump(self.values, f)
+        f = open(fin, 'rb')
+        f.seek(0)
+        self.values = pickle.load(f)
+        f.close()
 
-    def exports(self, fin):
+    def exports(self, fout):
         """
         保存values到文件
         :param f:
         :return:
         """
-        with open(fin) as f:
-            self.values = pickle.load(f)
+        fileout = open(fout, 'wb')
+        pickle.dump(self.values, fileout, -1)
+        fileout.close()
 
 
 if __name__ == '__main__':
@@ -157,20 +166,71 @@ if __name__ == '__main__':
     if (fin or dir) is None and (fout or fmodel or famodel) is None:
         print(usage)
         exit()
-    shb = SimhashBig()
-    if fin:
-        f = open(fin)
-        lines = f.readlines()
-        f.close()
 
-        for l in range(len(lines)):
-            s = Simhash(lines[l].decode('utf8'))
-            if not shb.find(s.value):
-                shb.save(s.value)
-        shb.exports(fout)
+    def process(fins, fout, fmodel, famodel):
+        if fmodel is not None:
+            shb.imports(fmodel)
+            for fin in fins:
+                f = open(fin)
+                lines = f.readlines()
+                f.close()
+                print(fin)
+                start = datetime.datetime.now()
+                c = 0
+                tc = 0
+                zc = 0
+                for l in range(len(lines)):
+                    s = Simhash(lines[l])
+                    r = shb.find(s.value)
+                    tc += r[0]
+                    zc += r[1]
+                    c += 1
+                end = datetime.datetime.now()
+                print('共 ', c, '条数据，', tc, '找到，', c - tc, '没找到，共', zc, '循环查找，平均每次查找', zc / c, '循环，共耗时 ',
+                      (end - start).total_seconds(), ' 秒')
+        elif famodel is not None:
+            shb.imports(famodel)
+            for fin in fins:
+                f = open(fin)
+                lines = f.readlines()
+                f.close()
+                print(fin)
+                start = datetime.datetime.now()
+                c = 0
+                for l in range(len(lines)):
+                    s = Simhash(lines[l])
+                    if not shb.find(s.value)[0]:
+                        c += 1
+                        shb.save(s.value)
+                        print(c)
+                end = datetime.datetime.now()
+                print('开始: ', start, ' 结束: ', end, '共', c, '数据， 共耗时 ', (end - start).total_seconds(), '秒')
+                shb.exports(famodel)
+        elif fout is not None:
+            for fin in fins:
+                f = open(fin)
+                lines = f.readlines()
+                f.close()
+                print(fin)
+                start = datetime.datetime.now()
+                c=0
+                for l in range(len(lines)):
+                    s = Simhash(lines[l])
+                    if not shb.find(s.value)[0]:
+                        c+=1
+                        shb.save(s.value)
+                        print(c)
+                end = datetime.datetime.now()
+                print('开始: ', start, ' 结束: ', end, '共',c,'数据， 共耗时 ', (end - start).total_seconds(), '秒')
+                shb.exports(fout)
+
+    shb = SimhashBig()
+    start = datetime.datetime.now()
+    if fin:
+        process([fin], fout, fmodel, famodel)
     elif dir:
         files = os.listdir(dir)
-        for file in files:
-            f = open(file)
-            lines = f.readlines()
-            f.close()
+        files = [dir+f for f in files]
+        process(files, fout, fmodel, famodel)
+    end = datetime.datetime.now()
+    print('开始: ',start, ' 结束: ', end, '共耗时 ',(end-start).total_seconds(),'秒')
