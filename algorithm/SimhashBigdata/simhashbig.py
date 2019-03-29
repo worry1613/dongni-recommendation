@@ -45,6 +45,20 @@ class SimhashBig(object):
             v >>= 16
         self.values[-1].add(value)
 
+    def delete(self, v):
+        """
+        删除simhash值v
+        :param v:    数值
+        :return:
+        """
+        vm = self.turn(v)
+        rm = [None, None, None, None]
+        # vl = set()
+        for k, m in enumerate(vm):
+            if m :
+                self.values[k].remove(v)
+        self.values[-1].remove(v)
+
     def find(self, v):
         """
         查找v，找到海明距离小于3的，true,没有找到false
@@ -64,9 +78,9 @@ class SimhashBig(object):
         if rmNone == 4:
             # 4个都没有命中，最少有4位不一位，肯定没有
             return (0,0)
-        elif rmNone == 0:
-            # 4个全命中，已经有一样的
-            return (1,0)
+        # elif rmNone == 0:
+        #     # 4个全命中，已经有一样的
+        #     return (1,0)
         keyspass = set()
         for kr, r in enumerate(rm):
             if r:
@@ -169,6 +183,9 @@ if __name__ == '__main__':
 
     def process(fins, fout, fmodel, famodel):
         if fmodel is not None:
+            """
+            用已有数据验证输入数据是否存在
+            """
             shb.imports(fmodel)
             for fin in fins:
                 f = open(fin)
@@ -176,19 +193,21 @@ if __name__ == '__main__':
                 f.close()
                 print(fin)
                 start = datetime.datetime.now()
-                c = 0
+                c = len(lines)
                 tc = 0
                 zc = 0
-                for l in range(len(lines)):
+                for l in range(c):
                     s = Simhash(lines[l])
                     r = shb.find(s.value)
                     tc += r[0]
                     zc += r[1]
-                    c += 1
                 end = datetime.datetime.now()
                 print('共 ', c, '条数据，', tc, '找到，', c - tc, '没找到，共', zc, '循环查找，平均每次查找', zc / c, '循环，共耗时 ',
                       (end - start).total_seconds(), ' 秒')
         elif famodel is not None:
+            """
+            用输入数据追加到现在数据集上
+            """
             shb.imports(famodel)
             for fin in fins:
                 f = open(fin)
@@ -202,11 +221,15 @@ if __name__ == '__main__':
                     if not shb.find(s.value)[0]:
                         c += 1
                         shb.save(s.value)
-                        print(c)
+                        if l %1000 == 0:
+                            print(l)
                 end = datetime.datetime.now()
                 print('开始: ', start, ' 结束: ', end, '共', c, '数据， 共耗时 ', (end - start).total_seconds(), '秒')
                 shb.exports(famodel)
         elif fout is not None:
+            """
+            用输入数据新建数据集合
+            """
             for fin in fins:
                 f = open(fin)
                 lines = f.readlines()
@@ -219,7 +242,8 @@ if __name__ == '__main__':
                     if not shb.find(s.value)[0]:
                         c+=1
                         shb.save(s.value)
-                        print(c)
+                        if l %1000 == 0:
+                            print(l)
                 end = datetime.datetime.now()
                 print('开始: ', start, ' 结束: ', end, '共',c,'数据， 共耗时 ', (end - start).total_seconds(), '秒')
                 shb.exports(fout)
