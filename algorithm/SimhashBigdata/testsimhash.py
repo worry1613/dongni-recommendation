@@ -40,18 +40,12 @@ def load_result(fin):
 
 if __name__ == '__main__':
 
-    # seeds = load_result('simhash.random.6553500')
-    # seeds = random_seed()
-
     shb = SimhashBig()
     fin = 'sohu.simhash'
     shb.imports(fin)
     seeds=[]
-    # temps = [v for v,i in zip(shb.values[-1],range(10**5))]
     for i in shb.values[-1]:
         seeds.extend([i>>r for r in range(1,8)])
-    # result = []
-    #
     ff = list(set(seeds)-shb.values[-1])
 
     c = 0
