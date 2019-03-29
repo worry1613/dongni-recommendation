@@ -65,33 +65,21 @@ class SimhashBig(object):
         :param v:
         :return:   找到海明距离小于3的true,没有找到false
         """
-        hm = 0
+        hm_t = 0
         vm = self.turn(v)
-        rm = [None, None, None, None]
-        # vl = set()
+        keyspass = set()
         for k, m in enumerate(vm):
             if m in self.values[k].keys():
-                rm[k] = m
-                # vl |= self.values[k][m]
-        hm_max = 0
-        rmNone = rm.count(None)
-        if rmNone == 4:
-            # 4个都没有命中，最少有4位不一位，肯定没有
-            return (0,0)
-        # elif rmNone == 0:
-        #     # 4个全命中，已经有一样的
-        #     return (1,0)
-        keyspass = set()
-        for kr, r in enumerate(rm):
-            if r:
-                keys = list(self.values[kr][r])
-                for key in keys:
-                    if key not in keyspass:
-                        hm_t = self.hamming_distance(v, key)
+                values = self.values[k][m]
+                if v in values:
+                    return 1, 1
+                for value in values:
+                    if value not in keyspass:
+                        hm_t = self.hamming_distance(v, value)
                         if hm_t <= self.hm:
-                            return (1,len(keys))
-                keyspass|=set(keys)
-        return (0,len(keyspass))
+                            return 1, len(values)
+                keyspass |= set(values)
+        return 0, len(keyspass)
 
     def hamming_distance(self, o, v):
         """
@@ -189,18 +177,21 @@ if __name__ == '__main__':
             shb.imports(fmodel)
             for fin in fins:
                 f = open(fin)
-                lines = f.readlines()
+                lines = f.readlines()[-10000:]
                 f.close()
                 print(fin)
-                start = datetime.datetime.now()
                 c = len(lines)
                 tc = 0
                 zc = 0
+                start = datetime.datetime.now()
                 for l in range(c):
                     s = Simhash(lines[l])
                     r = shb.find(s.value)
                     tc += r[0]
                     zc += r[1]
+                    if l % 1000 == 0:
+                        print(l,end=',')
+                print('')
                 end = datetime.datetime.now()
                 print('共 ', c, '条数据，', tc, '找到，', c - tc, '没找到，共', zc, '循环查找，平均每次查找', zc / c, '循环，共耗时 ',
                       (end - start).total_seconds(), ' 秒')
