@@ -93,6 +93,8 @@ class SimhashBig(object):
         while x:
             tot += 1
             x &= x - 1
+            if tot >self.hm:
+                return tot
         return tot
 
     def imports(self, fin):
