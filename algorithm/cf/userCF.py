@@ -24,9 +24,9 @@ from copy import deepcopy, copy
 
 # noinspection PyBroadException
 class userCF:
-    def __init__(self, f):
+    def __init__(self, f,sep='::'):
         self.file = f
-        self.df = pd.read_csv(self.file, sep='\t', header=None, usecols=[0, 1], names=['userid', 'itemid'],
+        self.df = pd.read_csv(self.file, sep=sep, header=None, usecols=[0, 1], names=['userid', 'itemid'],
                               engine='python')
         # alluserids 所有用户的id集合
         self.alluserids = pd.Series(self.df['userid']).unique()
@@ -53,40 +53,40 @@ class userCF:
         self.train = dict()
 
         try:
-            f = open("./data/usercf.train.dat", "rb")
+            f = open(self.file+'.'+self.__class__.__name__+".train.dat", "rb")
             self.train = pickle.load(f)
             f.close()
             self.calOK = True
             self.user_items = deepcopy(self.train)
         except Exception as e:
             self.calOK = False
-            print('usercf.train.dat文件不存在')
+            print(self.file+'.'+self.__class__.__name__+'.train.dat文件不存在')
 
 
         try:
-            f = open("./data/usercf.test.dat", "rb")
+            f = open(self.file+'.'+self.__class__.__name__+".test.dat", "rb")
             self.test = pickle.load(f)
             f.close()
             self.calOK = True
         except Exception as e:
             self.calOK = False
-            print('usercf.test.dat文件不存在')
+            print(self.file+'.'+self.__class__.__name__+'.test.dat文件不存在')
         try:
-            f = open("./data/usercf.item_users.dat", "rb")
+            f = open(self.file+'.'+self.__class__.__name__+".item_users.dat", "rb")
             self.item_users = pickle.load(f)
             f.close()
             self.calOK = True
         except Exception as e:
             self.calOK = False
-            print('usercf.item_users.dat文件不存在')
+            print(self.file+'.'+self.__class__.__name__+'.item_users.dat文件不存在')
         try:
-            f = open("./data/usercf.useritemcount.dat", "rb")
+            f = open(self.file+'.'+self.__class__.__name__+".useritemcount.dat", "rb")
             self.useritemcount = pickle.load(f)
             f.close()
             self.calOK = True
         except Exception as e:
             self.calOK = False
-            print('usercf.useritemcount.dat文件不存在')
+            print(self.file+'.'+self.__class__.__name__+'.useritemcount.dat文件不存在')
 
     def splitdata(self, M, key):
         """把数据切成训练集和测试集
@@ -94,7 +94,35 @@ class userCF:
         :param key:  选取第key份数据做为测试数据
         :return:
         """
-        if self.calOK is False:
+        if self.calOK:
+
+            try:
+                f = open(self.file+'.'+self.__class__.__name__+".train.dat", "wb")
+                pickle.dump(self.train, f)
+                f.close()
+            except Exception as e:
+                print(self.file+'.'+self.__class__.__name__+'.train.dat保存文件出错')
+
+            try:
+                f = open(self.file+'.'+self.__class__.__name__+".test.dat", "wb")
+                pickle.dump(self.test, f)
+                f.close()
+            except Exception as e:
+                print(self.file+'.'+self.__class__.__name__+'.test.dat保存文件出错')
+            try:
+                f = open(self.file+'.'+self.__class__.__name__+".item_users.dat", "wb")
+                pickle.dump(self.item_users, f)
+                f.close()
+            except Exception as e:
+                print(self.file+'.'+self.__class__.__name__+'.item_users.dat保存文件出错')
+            try:
+                f = open(self.file+'.'+self.__class__.__name__+".useritemcount.dat", "wb")
+                pickle.dump(self.useritemcount, f)
+                f.close()
+            except Exception as e:
+                print(self.file+'.'+self.__class__.__name__+'.useritemcount.dat保存文件出错')
+
+        else:
             random.seed(int(time.time()))
             for row in self.df.itertuples():
                 if random.randint(0, M) == key:
@@ -110,68 +138,34 @@ class userCF:
                 self.useritemcount.setdefault(k, len(v))
             self.user_items = deepcopy(self.train)
 
-            try:
-                f = open("./data/usercf.train.dat", "wb")
-                pickle.dump(self.train, f)
-                f.close()
-            except Exception as e:
-                print('usercf.train.dat保存文件出错')
 
-            try:
-                f = open("./data/usercf.test.dat", "wb")
-                pickle.dump(self.test, f)
-                f.close()
-            except Exception as e:
-                print('usercf.test.dat保存文件出错')
-            try:
-                f = open("./data/usercf.item_users.dat", "wb")
-                pickle.dump(self.item_users, f)
-                f.close()
-            except Exception as e:
-                print('usercf.item_users.dat保存文件出错')
-            try:
-                f = open("./data/usercf.useritemcount.dat", "wb")
-                pickle.dump(self.useritemcount, f)
-                f.close()
-            except Exception as e:
-                print('usercf.useritemcount.dat保存文件出错')
 
     # t  算法种类
     # 1 -- 传统算法  2 -- 改进算法，性能提高10%-15%
     def fit(self, t=2):
         # 算法分拆成2个函数，方便复用
-        try:
-            f = open("./data/%s.W.dat" % (self.__class__.__name__,), "rb")
-            self.W = pickle.load(f)
-            f.close()
-            self.calOK = True
-        except Exception as e:
-            self.calOK = False
-            print('%s.W.dat文件不存在' % (self.__class__.__name__,))
-        try:
-            f = open("./data/%s.uanduitem.dat" % (self.__class__.__name__,), "rb")
-            self.uanduitem = pickle.load(f)
-            f.close()
-            self.calOK = True
-        except Exception as e:
-            self.calOK = False
-            print('%s.uanduitem.dat文件不存在' % (self.__class__.__name__,))
 
-        if self.calOK is False:
+
+        if self.calOK :
+            try:
+                f = open(self.file + '.' + self.__class__.__name__ + ".W.dat", "rb")
+                self.W = pickle.load(f)
+                f.close()
+                self.calOK = True
+            except Exception as e:
+                self.calOK = False
+                print(self.file + '.' + self.__class__.__name__ + '.W.dat文件不存在')
+            try:
+                f = open(self.file + '.' + self.__class__.__name__ + ".uanduitem.dat", "rb")
+                self.uanduitem = pickle.load(f)
+                f.close()
+                self.calOK = True
+            except Exception as e:
+                self.calOK = False
+                print(self.file + '.' + self.__class__.__name__ + ".uanduitem.dat")
+        else:
             self._fit(t)
             self._fitW()
-            try:
-                f = open("./data/%s.W.dat" % (self.__class__.__name__,), "wb")
-                pickle.dump(self.W, f)
-                f.close()
-            except Exception as e:
-                print('%s.W.dat保存文件出错'  % (self.__class__.__name__,))
-            try:
-                f = open("./data/%s.uanduitem.dat" % (self.__class__.__name__,), "wb")
-                pickle.dump(self.uanduitem, f)
-                f.close()
-            except Exception as e:
-                print('%s.uanduitem.dat保存文件出错' % (self.__class__.__name__,))
 
     def _fit(self, t):
         '''
@@ -180,7 +174,7 @@ class userCF:
         :return:
         '''
         start = datetime.datetime.now()
-        print('start==', start)
+        print('_fit start==', str(start))
         # ic=0
         if t == 1:
             # 最传统的算法
@@ -211,8 +205,8 @@ class userCF:
                 # print(ic,datetime.datetime.now())
         # print('last',ic)
         end = datetime.datetime.now()
-        print('end==', end)
-        print('times==', end - start)
+        print('_f end==', str(end))
+        print('_f times==', (end - start).total_seconds())
 
     def _fitW(self):
         '''
@@ -220,14 +214,14 @@ class userCF:
         :return:
         '''
         start = datetime.datetime.now()
-        print('start==', start)
+        print('_fit start==', str(start))
         for u, ru in self.uanduitem.items():
             for v, cuv in ru.items():
                 self.W.setdefault(u, {})
                 self.W[u].setdefault(v, cuv / math.sqrt(self.useritemcount[u] * self.useritemcount[v]))
         end = datetime.datetime.now()
-        print('end==', end)
-        print('times==', end - start)
+        print('_f end==', str(end))
+        print('_f times==', (end - start).total_seconds())
 
     def recommend(self, user, k=10, n=20):
         '''
@@ -363,7 +357,7 @@ class userCFIIF(userCF):
 
 
 if __name__ == '__main__':
-    ucf = userCF('./data/user_artists.dat')
+    ucf = userCF('./data/views.dat')
     M = 5
     key = 1
     N = 10
@@ -378,13 +372,24 @@ if __name__ == '__main__':
         print('userCF: K: %3d, 召回率: %2.4f%% ,准确率: %2.4f%% ,流行度: %2.4f%%, 覆盖率: %2.4f%% ' %
               (k, recall*100, precision*100, popularity*100, coverage*100))
 
-    # ucfiif = userCFIIF('./data/views.dat')
-    # ucfiif.splitdata(M, key)
-    # ucfiif.fit()
-    # for k in K:
-    #     recall, precision = ucf.RecallandPrecision(N, k)
-    #     popularity = ucf.Popularity(N, k)
-    #     coverage = ucf.Coverage(N, k)
-    #
-    #     print('userCFIIF: K: %3d, 召回率: %2.4f%% ,准确率: %2.4f%% ,流行度: %2.4f%%, 覆盖率: %2.4f%% ' %
-    #           (k, recall*100, precision*100, popularity*100, coverage*100))
+    ucfiif = userCFIIF('./data/views.dat')
+    ucfiif.splitdata(M, key)
+    ucfiif.fit()
+    for k in K:
+        recall, precision = ucf.RecallandPrecision(N, k)
+        popularity = ucf.Popularity(N, k)
+        coverage = ucf.Coverage(N, k)
+
+        print('userCFIIF: K: %3d, 召回率: %2.4f%% ,准确率: %2.4f%% ,流行度: %2.4f%%, 覆盖率: %2.4f%% ' %
+              (k, recall*100, precision*100, popularity*100, coverage*100))
+
+    ucfartist = userCF('./data/user_artists.dat',sep='\t')
+    ucfartist.splitdata(M, key)
+    ucfartist.fit()
+    for k in K:
+        recall, precision = ucfartist.RecallandPrecision(N, k)
+        popularity = ucfartist.Popularity(N, k)
+        coverage = ucfartist.Coverage(N, k)
+
+        print('userCF: K: %3d, 召回率: %2.4f%% ,准确率: %2.4f%% ,流行度: %2.4f%%, 覆盖率: %2.4f%% ' %
+              (k, recall * 100, precision * 100, popularity * 100, coverage * 100))
