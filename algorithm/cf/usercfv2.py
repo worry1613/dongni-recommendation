@@ -1,14 +1,13 @@
 # -*- coding: utf-8 -*-
-# @创建时间 : 26/3/2019
+# @创建时间 : 17/10/2018
 # @作者    : worry1613(549145583@qq.com)
 # GitHub  : https://github.com/worry1613
 # @CSDN   : http://blog.csdn.net/worryabout/
 
-# 用户协同过滤算法类实现
-# 经典版本,进化版本
-# 参考网上内容以及《推荐系统实践》书内代码
+# dimsum2算法，具体见下链接
+# https://blog.twitter.com/engineering/en_us/a/2014/all-pairs-similarity-via-dimsum.html
+#
 import random
-
 import math
 import json
 import pickle
@@ -23,28 +22,35 @@ import logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 
-class userCF:
-    def __init__(self, f,sep='::'):
+class userCFv2(object):
+    def __init__(self, f,threshold=0.1,sep='::'):
+        self.threshold = threshold
         self.file = f
         self.df = pd.read_csv(self.file, sep=sep, header=None, usecols=[0, 1], names=['userid', 'itemid'],
                               engine='python')
         # alluserids 所有用户的id集合
         self.alluserids = pd.Series(self.df['userid']).unique()
+        self.userdict = dict(zip(self.alluserids,range(len(self.alluserids))))
         # allitemids 所有物品的id集合
         self.allitemids = pd.Series(self.df['itemid']).unique()
-        self.W = dict()
-        self.calOK = False
+        self.itemdict = dict(zip(self.allitemids,range(len(self.allitemids))))
+        self.matrix_u2i = np.zeros((len(self.alluserids),len(self.allitemids)),dtype=np.int8)
+        self.gama = math.sqrt(4 * math.log(len(self.allitemids)) / threshold)
+        # 用户相似度矩阵
+        self.W = np.zeros((len(self.alluserids),len(self.alluserids)),dtype=np.int8)
+
         # uanduitem  用户和用户的关系集合
-        self.uanduitem = dict()
+        # self.uanduitem = dict()
         # item_users 物品id对应的用户id集合表关系
-        self.item_users = dict()
+        # self.item_users = dict()
         # user_items 用户id对应的物品id集合表关系
-        self.user_items = dict()
+        # self.user_items = dict()
 
         # 每个用户的访问总量
         self.useritemcount = dict()
-        self.test = dict()
-        self.train = dict()
+        self.test = np.zeros((len(self.alluserids),len(self.allitemids)),dtype=np.int8)
+        self.train = np.zeros((len(self.alluserids),len(self.allitemids)),dtype=np.int8)
+        self.calOK = False
 
     def loaddat(self):
         logging.info('loaddat 开始')
@@ -157,74 +163,92 @@ class userCF:
             random.seed(int(time.time()))
             for row in self.df.itertuples():
                 if random.randint(0, M) == key:
-                    self.test.setdefault(row[1], set())
-                    self.test[row[1]].add(row[2])
+                    self.test[self.userdict[row[1]], self.itemdict[row[2]]] = 1
                 else:
-                    self.train.setdefault(row[1], set())
-                    self.train[row[1]].add(row[2])
-                    self.item_users.setdefault(row[2], set())
-                    self.item_users[row[2]].add(row[1])
+                    self.train[self.userdict[row[1]],self.itemdict[row[2]]] = 1
+                    # self.item_users.setdefault(row[2], set())
+                    # self.item_users[row[2]].add(row[1])
 
-            for k, v in self.train.items():
-                self.useritemcount.setdefault(k, len(v))
-            self.user_items = deepcopy(self.train)
+            # for k, v in self.train.items():
+            #     self.useritemcount.setdefault(k, len(v))
+            # self.user_items = deepcopy(self.train)
         logging.info('切分训练，测试数据集完毕 ')
 
     # t  算法种类
     # 1 -- 传统算法  2 -- 改进算法，性能提高10%-15%
-    def fit(self, t=2):
+    def fit(self):
         # 算法分拆成2个函数，方便复用
         if self.calOK is False:
             logging.info('算法开始 %s ' % (str(datetime.datetime.now()),))
-            self._fit(t)
+            self._fit()
             self._fitW()
             logging.info('算法结束 %s ' % (str(datetime.datetime.now()),))
 
-    def _fit(self, t):
+    def _fit(self):
         '''
-        计算 用户与用户矩阵
-        :param t:    1 -- 传统算法  2 -- 改进算法，性能提高10%-15%
-        :return:
-        '''
-        # ic=0
-        if t == 1:
-            # 最传统的算法
-            for i, users in self.item_users.items():
-                for u in users:
-                    for v in users:
-                        if u == v:
-                            continue
-                        self.uanduitem.setdefault(u, {})
-                        self.uanduitem[u].setdefault(v, 0)
-                        self.uanduitem[u][v] += 1
-                        # ic+=1
-                # print(ic,datetime.datetime.now())
-        else:
-            # 改进的算法，性能提高10%-15%
-            for i, users in self.item_users.items():
-                vs = copy(users)
-                for u in users:
-                    vs.remove(u)
-                    for v in vs:
-                        # ic += 1
-                        self.uanduitem.setdefault(u, {})
-                        self.uanduitem[u].setdefault(v, 0)
-                        self.uanduitem[u][v] += 1
-                        self.uanduitem.setdefault(v, {})
-                        self.uanduitem[v].setdefault(u, 0)
-                        self.uanduitem[v][u] += 1
-                # print(ic,datetime.datetime.now())
-        # print('last',ic)
+        # 填充 用户与物品矩阵
+        # :return:
+        # '''
+        # # ic=0
+        # if t == 1:
+        #     # 最传统的算法
+        #     for i, users in self.item_users.items():
+        #         for u in users:
+        #             for v in users:
+        #                 if u == v:
+        #                     continue
+        #                 self.uanduitem.setdefault(u, {})
+        #                 self.uanduitem[u].setdefault(v, 0)
+        #                 self.uanduitem[u][v] += 1
+        #                 # ic+=1
+        #         # print(ic,datetime.datetime.now())
+        # else:
+        #     # 改进的算法，性能提高10%-15%
+        #     for i, users in self.item_users.items():
+        #         vs = copy(users)
+        #         for u in users:
+        #             vs.remove(u)
+        #             for v in vs:
+        #                 # ic += 1
+        #                 self.uanduitem.setdefault(u, {})
+        #                 self.uanduitem[u].setdefault(v, 0)
+        #                 self.uanduitem[u][v] += 1
+        #                 self.uanduitem.setdefault(v, {})
+        #                 self.uanduitem[v].setdefault(u, 0)
+        #                 self.uanduitem[v][u] += 1
+        #         # print(ic,datetime.datetime.now())
+        # # print('last',ic)
 
     def _fitW(self):
-        '''
-        计算W矩阵
+        """
+        计算用户相似矩阵,DIMSUMv2算法
+        https://blog.twitter.com/engineering/en_us/a/2014/all-pairs-similarity-via-dimsum.html
         :return:
-        '''
-        for u, ru in self.uanduitem.items():
-            for v, cuv in ru.items():
-                self.W.setdefault(u, {})
-                self.W[u].setdefault(v, cuv / math.sqrt(self.useritemcount[u] * self.useritemcount[v]))
+        """
+        for r in range(self.train.shape[0]):
+            logging.info('%d行 ' % (r,))
+            for cj in range(self.train.shape[1]):
+                alist = np.nonzero(self.train[:,cj])[0].tolist()
+                ll = len(alist)
+                # logging.info('%d行 %d列 %d个元素' % (r,cj,ll))
+                lcj = min(1, self.gama / np.linalg.norm(self.train[:,cj]))
+                tp = random.random()
+                if tp < lcj:
+                    for ck in range(cj+1,ll):
+                        lck = min(1, self.gama / np.linalg.norm(self.train[:, ck]))
+                        tp = random.random()
+                        if tp < lck:
+                            self.W[alist[cj],alist[ck]] += 0 \
+                                if self.train[r,[alist[cj]]][0] ==0 or self.train[r,[alist[ck]]][0] ==0  \
+                                else (self.train[r,[alist[cj]]][0]*self.train[r,[alist[ck]]][0]/
+                                      (min(self.gama,lcj)*min(self.gama,lck)))
+                            # logging.info('%d %d %d >> %f' %(r, alist[cj],alist[ck],self.W[alist[cj],alist[ck]]))
+                        # logging.info('%d行 %d列 %d列' % (r, cj, ck))
+        print('fitW end!!')
+        # for u, ru in self.uanduitem.items():
+        #     for v, cuv in ru.items():
+        #         self.W.setdefault(u, {})
+        #         self.W[u].setdefault(v, cuv / math.sqrt(self.useritemcount[u] * self.useritemcount[v]))
 
     def recommend(self, user, n=20, k=10):
         '''
@@ -318,7 +342,7 @@ class userCF:
 
 
 # 用户协同过滤进化版，对热门产品进入惩罚
-class userCFIIF(userCF):
+class userCFIIFv2(userCFv2):
     #
     def _fit(self, t):
         # ic=0
@@ -356,37 +380,13 @@ class userCFIIF(userCF):
 
 if __name__ == '__main__':
     """
-2019-04-03 23:56:18,379 : INFO : loaddat 开始
-2019-04-03 23:57:15,043 : INFO : userCF: K:   5, 召回率: 12.1880% ,准确率: 20.5700% ,流行度: 4.4797, 覆盖率: 95.1891% 
-2019-04-03 23:57:25,511 : INFO : userCF: K:  10, 召回率: 12.0073% ,准确率: 20.2650% ,流行度: 4.4887, 覆盖率: 90.5218% 
-2019-04-03 23:57:41,661 : INFO : userCF: K:  20, 召回率: 12.0858% ,准确率: 20.3975% ,流行度: 4.4957, 覆盖率: 83.0780% 
-2019-04-03 23:58:04,359 : INFO : userCF: K:  30, 召回率: 12.2384% ,准确率: 20.6550% ,流行度: 4.5028, 覆盖率: 76.9986% 
-2019-04-03 23:58:32,676 : INFO : userCF: K:  40, 召回率: 12.1332% ,准确率: 20.4775% ,流行度: 4.5105, 覆盖率: 71.7808% 
-2019-04-03 23:59:24,328 : INFO : userCF: K:  80, 召回率: 12.3065% ,准确率: 20.7700% ,流行度: 4.5339, 覆盖率: 54.5476% 
-2019-04-04 00:01:11,291 : INFO : userCF: K: 160, 召回率: 12.1924% ,准确率: 20.5775% ,流行度: 4.6945, 覆盖率: 44.9258% 
-2019-04-04 00:01:16,453 : INFO : loaddat 开始
-2019-04-04 00:02:24,677 : INFO : userCFIIF: K:   5, 召回率: 11.9846% ,准确率: 20.0975% ,流行度: 4.4748, 覆盖率: 95.4752% 
-2019-04-04 00:02:35,687 : INFO : userCFIIF: K:  10, 召回率: 12.0457% ,准确率: 20.2000% ,流行度: 4.4816, 覆盖率: 91.3096% 
-2019-04-04 00:02:53,590 : INFO : userCFIIF: K:  20, 召回率: 12.0889% ,准确率: 20.2725% ,流行度: 4.4924, 覆盖率: 83.6964% 
-2019-04-04 00:03:16,974 : INFO : userCFIIF: K:  30, 召回率: 11.9890% ,准确率: 20.1050% ,流行度: 4.5043, 覆盖率: 76.2748% 
-2019-04-04 00:03:45,327 : INFO : userCFIIF: K:  40, 召回率: 11.9950% ,准确率: 20.1150% ,流行度: 4.5121, 覆盖率: 70.0742% 
-2019-04-04 00:04:35,538 : INFO : userCFIIF: K:  80, 召回率: 11.9175% ,准确率: 19.9850% ,流行度: 4.5362, 覆盖率: 54.0101% 
-2019-04-04 00:06:31,769 : INFO : userCFIIF: K: 160, 召回率: 12.0993% ,准确率: 20.2900% ,流行度: 4.6929, 覆盖率: 44.7450% 
-2019-04-04 00:06:33,101 : INFO : loaddat 开始
-2019-04-04 00:07:06,764 : INFO : userCF: K:   5, 召回率: 14.7879% ,准确率: 12.3445% ,流行度: 4.4152, 覆盖率: 12.5477% 
-2019-04-04 00:07:11,261 : INFO : userCF: K:  10, 召回率: 16.5775% ,准确率: 13.8384% ,流行度: 4.6904, 覆盖率: 8.5434% 
-2019-04-04 00:07:17,653 : INFO : userCF: K:  20, 召回率: 17.2207% ,准确率: 14.3753% ,流行度: 4.8990, 覆盖率: 5.8251% 
-2019-04-04 00:07:25,828 : INFO : userCF: K:  30, 召回率: 17.1825% ,准确率: 14.3434% ,流行度: 4.9947, 覆盖率: 4.7619% 
-2019-04-04 00:07:34,989 : INFO : userCF: K:  40, 召回率: 17.1252% ,准确率: 14.2956% ,流行度: 5.0580, 覆盖率: 4.0871% 
-2019-04-04 00:07:50,470 : INFO : userCF: K:  80, 召回率: 16.4310% ,准确率: 13.7161% ,流行度: 5.1890, 覆盖率: 3.0876% 
-2019-04-04 00:08:18,304 : INFO : userCF: K: 160, 召回率: 15.5139% ,准确率: 12.9506% ,流行度: 5.3063, 覆盖率: 2.4064% 
     """
     M = 5
     key = 1
     N = 10
     K = [5,10,20,30,40,80,160]
 
-    ucf = userCF('./data/views.dat')
+    ucf = userCFv2('./data/views.dat')
     lt = ucf.loaddat()
     if not lt:
         ucf.splitdata(M, key)
@@ -400,7 +400,7 @@ if __name__ == '__main__':
         logging.info('userCF: K: %3d, 召回率: %2.4f%% ,准确率: %2.4f%% ,流行度: %2.4f, 覆盖率: %2.4f%% ' %
               (k, recall*100, precision*100, popularity, coverage*100))
 
-    ucfiif = userCFIIF('./data/views.dat')
+    ucfiif = userCFIIFv2('./data/views.dat')
     if not ucfiif.loaddat():
         ucfiif.splitdata(M, key)
         ucfiif.fit()
@@ -413,7 +413,7 @@ if __name__ == '__main__':
         logging.info('userCFIIF: K: %3d, 召回率: %2.4f%% ,准确率: %2.4f%% ,流行度: %2.4f, 覆盖率: %2.4f%% ' %
               (k, recall*100, precision*100, popularity, coverage*100))
 
-    ucfartist = userCF('./data/user_artists.dat',sep='\t')
+    ucfartist = userCFv2('./data/user_artists.dat',sep='\t')
     if not ucfartist.loaddat():
         ucfartist.splitdata(M, key)
         ucfartist.fit()
