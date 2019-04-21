@@ -56,11 +56,14 @@ class Fenci(nlp):
             print self.fin, "文件读取错误请检查!"
             exit(0)
 
-        jieba.enable_parallel(4)
+        import multiprocessing
+        cpu_count = multiprocessing.cpu_count()
+        jieba.enable_parallel(cpu_count)
         lines = docs.readlines()
         logging.info('%d lines ======' % (len(lines),))
-        for line in lines:
-            self.result.append([doc.strip() for doc in jieba.cut(line.strip(), cut_all=False) if doc not in stopwords])
+        self.result = [ [doc.strip() for doc in jieba.cut(line.strip(), cut_all=False) if doc not in stopwords] for line in lines  ]
+        # for line in lines:
+        #     self.result.append([doc.strip() for doc in jieba.cut(line.strip(), cut_all=False) if doc not in stopwords])
         docs.close()
         logging.info('>>>>>>>>>>>>>')
         if fout:
@@ -82,8 +85,10 @@ class Fenci(nlp):
             exit(0)
 
 if __name__ == '__main__':
-    fin = ".//新闻.txt"
-    fout = ".//新闻切词.txt"
-    t = Fenci(fin)
+    fin = sys.argv[1]
+    fout = sys.argv[2]
+    userdict = sys.argv[3]
+    t = Fenci(fin, )
     t.cut(fout)
     # t.save(fout)
+
