@@ -5,6 +5,7 @@
 # @CSDN   : http://blog.csdn.net/worryabout/
 
 import sys, os
+from optparse import OptionParser
 
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -16,11 +17,13 @@ import logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 stopd = './/stop.dict'
 
+
 class Fenci(nlp):
     """
     切词类，把语料库的文本内容切词
     """
-    def __init__(self, fin, userdict=None, stopdict=None):
+
+    def __init__(self, fin, userdict=None, stopdict=stopd):
         """
 
         :param fin: 语料库文件
@@ -28,7 +31,7 @@ class Fenci(nlp):
         :param stopdict: 停用词典
         """
         self.fin = fin
-        self.stopd = stopd if stopdict is None else stopdict
+        self.stopd = stopdict
         self.result = []
 
         if userdict is not None:
@@ -60,10 +63,9 @@ class Fenci(nlp):
         cpu_count = multiprocessing.cpu_count()
         jieba.enable_parallel(cpu_count)
         lines = docs.readlines()
-        logging.info('%d lines ======' % (len(lines),))
-        self.result = [ [doc.strip() for doc in jieba.cut(line.strip(), cut_all=False) if doc not in stopwords] for line in lines  ]
-        # for line in lines:
-        #     self.result.append([doc.strip() for doc in jieba.cut(line.strip(), cut_all=False) if doc not in stopwords])
+        logging.info('%d lines ======%d workers' % (len(lines),cpu_count))
+        self.result = [[doc.strip() for doc in jieba.cut(line.strip(), cut_all=False) if doc not in stopwords] for line
+                       in lines]
         docs.close()
         logging.info('>>>>>>>>>>>>>')
         if fout:
@@ -84,11 +86,18 @@ class Fenci(nlp):
             print self.fout, "写文件取错误请检查!"
             exit(0)
 
-if __name__ == '__main__':
-    fin = sys.argv[1]
-    fout = sys.argv[2]
-    userdict = sys.argv[3]
-    t = Fenci(fin, )
-    t.cut(fout)
-    # t.save(fout)
 
+if __name__ == '__main__':
+    parser = OptionParser()
+    parser.add_option('-i', '--in', type=str, help='语料库文件', dest='corpusfile')
+    parser.add_option('-o', '--out', type=str, help='分完词的文件', dest='wordsfile')
+    parser.add_option('-w', '--word', type=str, help='自定义词典文件', dest='wordsdict')
+    parser.add_option('-s', '--stop', type=str, help='停用词词典文件', dest='stopwords')
+
+    options, args = parser.parse_args()
+    if not (options.corpusfile or options.wordsfile):
+        parser.print_help()
+        exit()
+
+    t = Fenci(options.corpusfile, options.wordsdict)
+    t.cut(options.wordsfile)
