@@ -58,23 +58,3 @@ if __name__ == '__main__':
     w.process()
     logging.info('>>>>>>>>>>>>>>>>')
     w.save(options.modelfile)
-
-
-    # print '"家装" 和 "家居" 的相似度:' + str(w.model.similarity(u'家装', u'家居'))
-    #
-    # # 计算某个词的相关词列表
-    # y2 = w.model.most_similar(u'家居', topn=20)  # 20个最相关的
-    # for item in y2:
-    #     print item[0], item[1]
-    # print "--------\n"
-
-    # # 寻找对应关系
-    # y3 = w.model.most_similar([u'质量', u'不错'], [u'电脑桌'], topn=3)
-    # for item in y3:
-    #     print item[0], item[1]
-    # print "--------\n"
-    #
-    # # 寻找不合群的词
-    # y4 = w.model.doesnt_match(u"书 书籍 教材 很 沙发 电器".split())
-    # print u"不合群的词：", y4
-    # print "--------\n"
