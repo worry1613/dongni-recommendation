@@ -8,6 +8,7 @@
 # 经典版本,进化版本
 # 参考网上内容以及《推荐系统实践》书内代码
 import random
+from optparse import OptionParser
 
 import math
 import json
@@ -22,8 +23,8 @@ from copy import deepcopy, copy
 import logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
-
-class userCF(object):
+# 协同过滤基类
+class CF:
     def __init__(self, f,sep='::'):
         self.file = f
         self.df = pd.read_csv(self.file, sep=sep, header=None, usecols=[0, 1], names=['userid', 'itemid'],
@@ -146,7 +147,7 @@ class userCF(object):
         except Exception as e:
             logging.error(self.file + '.' + self.__class__.__name__ + ".uanduitem.dat")
 
-    def splitdata(self, M, key):
+    def splitdata(self,M,key):
         """把数据切成训练集和测试集
         :param M:  数据将分成M份
         :param key:  选取第key份数据做为测试数据
@@ -170,9 +171,9 @@ class userCF(object):
             self.user_items = deepcopy(self.train)
         logging.info('切分训练，测试数据集完毕 ')
 
-    # t  算法种类
-    # 1 -- 传统算法  2 -- 改进算法，性能提高10%-15%
-    def fit(self, t=2):
+    def fit(self,t=2):
+        # t  算法种类
+        # 1 -- 传统算法  2 -- 改进算法，性能提高10%-15%
         # 算法分拆成2个函数，方便复用
         if self.calOK is False:
             logging.info('算法开始 %s ' % (str(datetime.datetime.now()),))
@@ -180,6 +181,81 @@ class userCF(object):
             self._fitW()
             logging.info('算法结束 %s ' % (str(datetime.datetime.now()),))
 
+    def _fit(self,t):
+        pass
+
+    def _fitW(self):
+        pass
+
+    def recommend(self,user,n=20,k=10):
+        pass
+    '''
+    评测函数
+    '''
+    def RecallandPrecision(self, N, K):
+        """ 计算推荐结果的召回率,准确率
+            @param N     推荐结果的数目
+            @param K     选取近邻的数目
+        """
+        hit = 0
+        n_recall = 0
+        n_precision = 0
+        for user in self.train.keys():
+            if user in self.test:
+                tu = self.test[user]
+                rank = self.recommend(user, N, K)
+                for item, pui in rank:
+                    if item in tu:
+                        hit += 1
+                n_recall += len(tu)
+                n_precision += N
+        # print(hit)
+        # print(n_recall, n_precision)
+        return hit / (n_recall * 1.0), hit / (n_precision * 1.0)
+
+    def Coverage(self, N, K):
+        """ 计算推荐结果的覆盖率
+            @param N     推荐结果的数目
+            @param K     选取近邻的数目
+        """
+        recommned_items = set()
+        all_items = set()
+
+        for user in self.train.keys():
+            for item in self.train[user]:
+                all_items.add(item)
+
+            rank = self.recommend(user, N, K)
+            for item, pui in rank:
+                recommned_items.add(item)
+
+        # print('len: ', len(recommned_items), 'all_items:', len(all_items))
+        return len(recommned_items) / (len(all_items) * 1.0)
+
+    def Popularity(self, N, K):
+        """ 计算推荐结果的新颖度(流行度)
+            @param N     推荐结果的数目
+            @param K     选取近邻的数目
+        """
+        item_popularity = dict()
+        for user, items in self.train.items():
+            for item in items:
+                if item not in item_popularity:
+                    item_popularity[item] = 0
+                item_popularity[item] += 1
+
+        ret = 0
+        n = 0
+        for user in self.train.keys():
+            rank = self.recommend(user, N, K)
+            for item, pui in rank:
+                ret += math.log(1 + item_popularity[item])
+                n += 1
+        ret /= n * 1.0
+        return ret
+
+
+class userCF(CF):
     def _fit(self, t):
         '''
         计算 用户与用户矩阵
@@ -251,72 +327,6 @@ class userCF(object):
         else:
             return []
 
-    '''
-    评测函数
-    '''
-    def RecallandPrecision(self, N, K):
-        """ 计算推荐结果的召回率,准确率
-            @param N     推荐结果的数目
-            @param K     选取近邻的数目
-        """
-        hit = 0
-        n_recall = 0
-        n_precision = 0
-        for user in self.train.keys():
-            if user in self.test:
-                tu = self.test[user]
-                rank = self.recommend(user, N, K)
-                for item, pui in rank:
-                    if item in tu:
-                        hit += 1
-                n_recall += len(tu)
-                n_precision += N
-        # print(hit)
-        # print(n_recall, n_precision)
-        return hit / (n_recall * 1.0), hit / (n_precision * 1.0)
-
-    def Coverage(self, N, K):
-        """ 计算推荐结果的覆盖率
-            @param N     推荐结果的数目
-            @param K     选取近邻的数目
-        """
-        recommned_items = set()
-        all_items = set()
-
-        for user in self.train.keys():
-            for item in self.train[user]:
-                all_items.add(item)
-
-            rank = self.recommend(user, N, K)
-            for item, pui in rank:
-                recommned_items.add(item)
-
-        # print('len: ', len(recommned_items), 'all_items:', len(all_items))
-        return len(recommned_items) / (len(all_items) * 1.0)
-
-    def Popularity(self, N, K):
-        """ 计算推荐结果的新颖度(流行度)
-            @param N     推荐结果的数目
-            @param K     选取近邻的数目
-        """
-        item_popularity = dict()
-        for user, items in self.train.items():
-            for item in items:
-                if item not in item_popularity:
-                    item_popularity[item] = 0
-                item_popularity[item] += 1
-
-        ret = 0
-        n = 0
-        for user in self.train.keys():
-            rank = self.recommend(user, N, K)
-            for item, pui in rank:
-                ret += math.log(1 + item_popularity[item])
-                n += 1
-        ret /= n * 1.0
-        return ret
-
-
 # 用户协同过滤进化版，对热门产品进入惩罚
 class userCFIIF(userCF):
     #
@@ -381,12 +391,26 @@ if __name__ == '__main__':
 2019-04-04 00:07:50,470 : INFO : userCF: K:  80, 召回率: 16.4310% ,准确率: 13.7161% ,流行度: 5.1890, 覆盖率: 3.0876% 
 2019-04-04 00:08:18,304 : INFO : userCF: K: 160, 召回率: 15.5139% ,准确率: 12.9506% ,流行度: 5.3063, 覆盖率: 2.4064% 
     """
-    M = 5
-    key = 1
-    N = 10
-    K = [5,10,20,30,40,80,160]
 
-    ucf = userCF('./data/views.dat')
+    parser = OptionParser()
+    parser.add_option('-i', '--in', type=str, help='用户访问日志文件', dest='file')
+    parser.add_option(      '--train', type=int, default=0.8,help='训练数据占比,默认0.8', dest='train')
+    parser.add_option(      '--sep', type=str, default='::',help='日志文件分隔符,默认 ::', dest='sep')
+    parser.add_option('-n',  type=int, default=10, help='推荐结果的数目,默认10', dest='n')
+    parser.add_option('-k',  type=str, default='10',help='选取近邻的数目', dest='k')
+
+    options, args = parser.parse_args()
+    if not options.file:
+        parser.print_help()
+        exit()
+
+    M = int(options.train//(1-options.train))
+    key = 1
+    N = options.n
+    K = [int(kk) for kk in options.k.split(',')]
+    sep = options.sep
+
+    ucf = userCF(options.file,sep=sep)
     lt = ucf.loaddat()
     if not lt:
         ucf.splitdata(M, key)
@@ -400,7 +424,7 @@ if __name__ == '__main__':
         logging.info('userCF: K: %3d, 召回率: %2.4f%% ,准确率: %2.4f%% ,流行度: %2.4f, 覆盖率: %2.4f%% ' %
               (k, recall*100, precision*100, popularity, coverage*100))
 
-    ucfiif = userCFIIF('./data/views.dat')
+    ucfiif = userCFIIF(options.file,sep=sep)
     if not ucfiif.loaddat():
         ucfiif.splitdata(M, key)
         ucfiif.fit()
@@ -412,16 +436,3 @@ if __name__ == '__main__':
 
         logging.info('userCFIIF: K: %3d, 召回率: %2.4f%% ,准确率: %2.4f%% ,流行度: %2.4f, 覆盖率: %2.4f%% ' %
               (k, recall*100, precision*100, popularity, coverage*100))
-
-    ucfartist = userCF('./data/user_artists.dat',sep='\t')
-    if not ucfartist.loaddat():
-        ucfartist.splitdata(M, key)
-        ucfartist.fit()
-        ucfartist.savedat()
-    for k in K:
-        recall, precision = ucfartist.RecallandPrecision(N, k)
-        popularity = ucfartist.Popularity(N, k)
-        coverage = ucfartist.Coverage(N, k)
-
-        logging.info('userCF: K: %3d, 召回率: %2.4f%% ,准确率: %2.4f%% ,流行度: %2.4f, 覆盖率: %2.4f%% ' %
-              (k, recall * 100, precision * 100, popularity, coverage * 100))
