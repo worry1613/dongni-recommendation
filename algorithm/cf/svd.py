@@ -55,8 +55,8 @@ class SVD(object):
         :param i: item id
         :return:
         """
-        # return sum(self.P[u][f] * self.Q[i][f] for f in range(self.F))
-        return float(np.dot(self.Q[i,:], self.P[u,:].T))
+        return sum(self.P[u][f] * self.Q[i][f] for f in range(self.F))
+        # return float(np.dot(self.Q[i,:], self.P[u,:].T))
 
     def recommend(self,u,i):
         """
@@ -67,104 +67,19 @@ class SVD(object):
         """
         return self.predict(u,i)
 
-    def loaddat(self,tr,te,P,Q,users,items):
-        logging.info('loaddat 开始')
-        calOK = 0
+    def savedat(self,cls):
+        """
+        保存数据模型到指定文件
+        :param cls:     类保存文件
+        :return:
+        """
+        logging.info('savedat 开始')
         try:
-            f = open(tr, "rb")
-            self.train = pickle.load(f)
+            f = open(cls, "wb")
+            pickle.dump(self, f)
             f.close()
-            calOK = 1
         except Exception as e:
-            calOK = 0
-            logging.error('%s文件不存在' % (tr,))
-            return calOK
-        try:
-            f = open(te, "rb")
-            self.test = pickle.load(f)
-            f.close()
-            calOK = 1
-        except Exception as e:
-            calOK = 0
-            logging.error('%s文件不存在' % (te,))
-            return calOK
-        try:
-            f = open(P, "rb")
-            self.P = pickle.load(f)
-            f.close()
-            calOK = 1
-        except Exception as e:
-            calOK = 0
-            logging.error('%s文件不存在' % (P,))
-            return calOK
-        try:
-            f = open(Q, "rb")
-            self.Q = pickle.load(f)
-            f.close()
-            calOK = 0
-        except Exception as e:
-            calOK = 0
-            logging.error('%s文件不存在' % (Q,))
-            return calOK
-        try:
-            f = open(users, "rb")
-            self.users = pickle.load(f)
-            f.close()
-            calOK = 0
-        except Exception as e:
-            calOK = 0
-            logging.error('%s文件不存在' % (users,))
-            return calOK
-        try:
-            f = open(items, "rb")
-            self.items = pickle.load(f)
-            f.close()
-            calOK = 0
-        except Exception as e:
-            calOK = 0
-            logging.error('%s文件不存在' % (items,))
-            return calOK
-        return calOK
-
-    # def savedat(self):
-    #     logging.info('savedat 开始')
-    #     try:
-    #         f = open(self.file + '.' + self.__class__.__name__ + ".train.dat", "wb")
-    #         pickle.dump(self.train, f)
-    #         f.close()
-    #     except Exception as e:
-    #         logging.error(self.file + '.' + self.__class__.__name__ + '.train.dat保存文件出错')
-    #
-    #     try:
-    #         f = open(self.file + '.' + self.__class__.__name__ + ".test.dat", "wb")
-    #         pickle.dump(self.test, f)
-    #         f.close()
-    #     except Exception as e:
-    #         logging.error(self.file + '.' + self.__class__.__name__ + '.test.dat保存文件出错')
-    #     try:
-    #         f = open(self.file + '.' + self.__class__.__name__ + ".item_users.dat", "wb")
-    #         pickle.dump(self.item_users, f)
-    #         f.close()
-    #     except Exception as e:
-    #         logging.error(self.file + '.' + self.__class__.__name__ + '.item_users.dat保存文件出错')
-    #     try:
-    #         f = open(self.file + '.' + self.__class__.__name__ + ".useritemcount.dat", "wb")
-    #         pickle.dump(self.useritemcount, f)
-    #         f.close()
-    #     except Exception as e:
-    #         logging.error(self.file + '.' + self.__class__.__name__ + '.useritemcount.dat保存文件出错')
-    #     try:
-    #         f = open(self.file + '.' + self.__class__.__name__ + ".W.dat", "wb")
-    #         pickle.dump(self.W, f)
-    #         f.close()
-    #     except Exception as e:
-    #         logging.error(self.file + '.' + self.__class__.__name__ + '.W.dat文件不存在')
-    #     try:
-    #         f = open(self.file + '.' + self.__class__.__name__ + ".uanduitem.dat", "wb")
-    #         pickle.dump(self.uanduitem, f)
-    #         f.close()
-    #     except Exception as e:
-    #         logging.error(self.file + '.' + self.__class__.__name__ + ".uanduitem.dat")
+            logging.error('%s保存文件出错' % (cls,))
 
     def splitdata(self,M=10,key=1):
         """把数据切成训练集和测试集
@@ -184,12 +99,12 @@ class SVD(object):
         self.items = pd.Series(self.df['itemid']).unique().tolist()
         logging.info('共%d条评分记录，用户共%d个，物品共%d个。' % (self.train.shape[0], len(self.users), len(self.items)))
 
-        self.P = np.matrix(np.random.rand(len(self.users), self.F), dtype=np.longfloat)
-        self.Q = np.matrix(np.random.rand(len(self.items), self.F), dtype=np.longfloat)
-        # for user in self.users:
-        #     self.P[user] = [random.random() / math.sqrt(F) for i in range(F)]
-        # for item in self.items:
-        #     self.Q[item] = [random.random() / math.sqrt(F) for i in range(F)]
+        # self.P = np.matrix(np.random.rand(len(self.users), self.F), dtype=np.longfloat)
+        # self.Q = np.matrix(np.random.rand(len(self.items), self.F), dtype=np.longfloat)
+        for user in self.users:
+            self.P[user] = [random.random() / math.sqrt(F) for i in range(F)]
+        for item in self.items:
+            self.Q[item] = [random.random() / math.sqrt(F) for i in range(F)]
 
     def fit(self, N=10, alpha=.1, _lambda=.1, out=1):
         """
@@ -206,62 +121,22 @@ class SVD(object):
         for step in range(0, N):
             logging.info('=====N:%d' % (step,))
             for row in self.train.itertuples():
-                u, i, rui = self.users.index(row[1]),self.items.index(row[2]),row[3]
+                u, i, rui = row[1],row[2],row[3]
+                # u, i, rui = self.users.index(row[1]),self.items.index(row[2]),row[3]
                 pui = self.predict(u, i)
                 eui = rui - pui
 
                 for f in range(0, self.F):
-                    # self.P[u][f] += alpha * (self.Q[i][f] * eui - _lambda * self.P[u][f])
-                    # self.Q[i][f] += alpha * (self.P[u][f] * eui - _lambda * self.Q[i][f])
-                    self.P[u,f] += alpha * (self.Q[i,f] * eui - _lambda * self.P[u,f])
-                    self.Q[i,f] += alpha * (self.P[u,f] * eui - _lambda * self.Q[i,f])
+                    self.P[u][f] += alpha * (self.Q[i][f] * eui - _lambda * self.P[u][f])
+                    self.Q[i][f] += alpha * (self.P[u][f] * eui - _lambda * self.Q[i][f])
+                    # self.P[u,f] += alpha * (self.Q[i,f] * eui - _lambda * self.P[u,f])
+                    # self.Q[i,f] += alpha * (self.P[u,f] * eui - _lambda * self.Q[i,f])
             alpha *= slowRate
         logging.info('训练结束，共耗时%d秒。' % (time.time()-start))
         if out:
             #保存模型文件
-            fpname = '%s.%s.%d_%d_%f_%f.P.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
-            fqname = '%s.%s.%d_%d_%f_%f.Q.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
-            ftrname = '%s.%s.%d_%d_%f_%f.train.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
-            ftename = '%s.%s.%d_%d_%f_%f.test.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
-            fusers = '%s.%s.%d_%d_%f_%f.users.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
-            fitems = '%s.%s.%d_%d_%f_%f.items.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
-            try:
-                f = open(fpname, "wb")
-                pickle.dump(self.P, f)
-                f.close()
-            except Exception as e:
-                logging.error('%s 保存文件出错' % (fpname, ))
-            try:
-                f = open(fqname, "wb")
-                pickle.dump(self.Q, f)
-                f.close()
-            except Exception as e:
-                logging.error('%s 保存文件出错' % (fpname, ))
-            try:
-                f = open(ftrname, "wb")
-                pickle.dump(self.train, f)
-                f.close()
-            except Exception as e:
-                logging.error('%s 保存文件出错' % (ftrname, ))
-            try:
-                f = open(ftename, "wb")
-                pickle.dump(self.test, f)
-                f.close()
-            except Exception as e:
-                logging.error('%s 保存文件出错' % (ftename, ))
-
-            try:
-                f = open(fusers, "wb")
-                pickle.dump(self.users, f)
-                f.close()
-            except Exception as e:
-                logging.error('%s 保存文件出错' % (fusers, ))
-            try:
-                f = open(fitems, "wb")
-                pickle.dump(self.items, f)
-                f.close()
-            except Exception as e:
-                logging.error('%s 保存文件出错' % (fitems, ))
+            fname = '%s.%s.%d_%d_%f_%f.class.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
+            self.savedat(fname)
         return self.P, self.Q
 
     '''
@@ -272,10 +147,11 @@ class SVD(object):
         """
         scores = []
         for row in self.test.itertuples():
-            user,item,rating = self.users.index(row[1]),self.items.index(row[2]),row[3]
-            scores.append(
-                math.pow(rating - self.predict(user, item),2))
+            user,item,rating = row[1],row[2],row[3]
+            # user,item,rating = self.users.index(row[1]),self.items.index(row[2]),row[3]
+            scores.append(math.pow(rating - self.predict(user, item),2))
         return math.sqrt(sum(scores)/len(scores))
+
 
 if __name__ == '__main__':
     clsmap = {1:SVD,2:SVD,3:SVD,4:SVD,}
@@ -304,21 +180,19 @@ if __name__ == '__main__':
     f = options.f
     m = options.m
 
-    # clsmap[m]
-    svd = SVD(fname,sep,f)
-    svd.splitdata(M+key,key=key)
-    svd.fit(N=N,alpha=alpha,_lambda=_lambda)
-    # te = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.test.dat'
-    # tr = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.train.dat'
-    # P = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.P.dat'
-    # Q = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.Q.dat'
-    # users = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.users.dat'
-    # items = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.items.dat'
-    # svd.loaddat(tr,te,P,Q,users,items)
+    svd = None
+    # 如果需要加载已经保存好的模型文件，取消注释
+    # fclsname = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.class.dat'
+    # try:
+    #     f = open(fclsname, "rb")
+    #     svd = pickle.load(f)
+    #     f.close()
+    # except Exception as e:
+    #     logging.error('%s文件不存在' % (fclsname,))
+    if not svd:
+        svd = SVD(fname,sep,f)
+        svd.splitdata(M+key,key=key)
+        svd.fit(N=N,alpha=alpha,_lambda=_lambda)
     rmse = svd.rmse()
     logging.info('SVD: F: %d, N: %d ,alpha: %f ,lambda: %f, RMSE: %f' %
                  (f, N, alpha, _lambda, rmse))
-    exit()
-
-    """
-    """
