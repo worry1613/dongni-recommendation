@@ -16,7 +16,6 @@ import numpy as np
 import pandas as pd
 import datetime
 import time
-from copy import deepcopy, copy
 
 import logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -56,7 +55,8 @@ class SVD(object):
         :param i: item id
         :return:
         """
-        return sum(self.P[u][f] * self.Q[i][f] for f in range(self.F))
+        # return sum(self.P[u][f] * self.Q[i][f] for f in range(self.F))
+        return float(np.dot(self.Q[i,:], self.P[u,:].T))
 
     def recommend(self,u,i):
         """
@@ -67,7 +67,7 @@ class SVD(object):
         """
         return self.predict(u,i)
 
-    def loaddat(self,tr,te,P,Q):
+    def loaddat(self,tr,te,P,Q,users,items):
         logging.info('loaddat 开始')
         calOK = 0
         try:
@@ -105,6 +105,24 @@ class SVD(object):
         except Exception as e:
             calOK = 0
             logging.error('%s文件不存在' % (Q,))
+            return calOK
+        try:
+            f = open(users, "rb")
+            self.users = pickle.load(f)
+            f.close()
+            calOK = 0
+        except Exception as e:
+            calOK = 0
+            logging.error('%s文件不存在' % (users,))
+            return calOK
+        try:
+            f = open(items, "rb")
+            self.items = pickle.load(f)
+            f.close()
+            calOK = 0
+        except Exception as e:
+            calOK = 0
+            logging.error('%s文件不存在' % (items,))
             return calOK
         return calOK
 
@@ -161,15 +179,17 @@ class SVD(object):
         self.train = self.df.loc[trainids]
         logging.info('切分训练，测试数据集完毕,训练数据%d条，测试数据%d条。' % (len(trainids), len(testids)))
 
-        self.users = pd.Series(self.train['userid']).unique()
+        self.users = pd.Series(self.df['userid']).unique().tolist()
         # items 所有物品的id集合
-        self.items = pd.Series(self.train['itemid']).unique()
+        self.items = pd.Series(self.df['itemid']).unique().tolist()
         logging.info('共%d条评分记录，用户共%d个，物品共%d个。' % (self.train.shape[0], len(self.users), len(self.items)))
-        for user in self.users:
-            self.P[user] = [random.random() / math.sqrt(F) for i in range(F)]
-        for item in self.items:
-            self.Q[item] = [random.random() / math.sqrt(F) for i in range(F)]
 
+        self.P = np.matrix(np.random.rand(len(self.users), self.F), dtype=np.longfloat)
+        self.Q = np.matrix(np.random.rand(len(self.items), self.F), dtype=np.longfloat)
+        # for user in self.users:
+        #     self.P[user] = [random.random() / math.sqrt(F) for i in range(F)]
+        # for item in self.items:
+        #     self.Q[item] = [random.random() / math.sqrt(F) for i in range(F)]
 
     def fit(self, N=10, alpha=.1, _lambda=.1, out=1):
         """
@@ -180,29 +200,31 @@ class SVD(object):
         :param out: 是否保存模型文件 ,默认1，输出
         :return:
         """
+        slowRate = 0.90
         start = time.time()
         logging.info('开始训练，F: %d ,N:%d ,alpha:%.4f ,lambda:%.4f。' % (self.F, N, alpha,_lambda))
         for step in range(0, N):
             logging.info('=====N:%d' % (step,))
             for row in self.train.itertuples():
-                u, i, rui = row[1],row[2],row[3]
+                u, i, rui = self.users.index(row[1]),self.items.index(row[2]),row[3]
                 pui = self.predict(u, i)
                 eui = rui - pui
-                # logging.info('%d,%d,%f' % (u, i, rui))
+
                 for f in range(0, self.F):
-                    # logging.info('P[%d][%d]=%f,Q[%d][%d]=%f,rui=%1.1f,pui=%f,eui=%f ' % (u, f, self.P[u][f],
-                    #                                                                        i, f, self.Q[i][f],
-                    #                                                                        rui,pui,eui))
-                    self.P[u][f] += alpha * (self.Q[i][f] * eui - _lambda * self.P[u][f])
-                    self.Q[i][f] += alpha * (self.P[u][f] * eui - _lambda * self.Q[i][f])
-            alpha *= 0.9
+                    # self.P[u][f] += alpha * (self.Q[i][f] * eui - _lambda * self.P[u][f])
+                    # self.Q[i][f] += alpha * (self.P[u][f] * eui - _lambda * self.Q[i][f])
+                    self.P[u,f] += alpha * (self.Q[i,f] * eui - _lambda * self.P[u,f])
+                    self.Q[i,f] += alpha * (self.P[u,f] * eui - _lambda * self.Q[i,f])
+            alpha *= slowRate
         logging.info('训练结束，共耗时%d秒。' % (time.time()-start))
         if out:
             #保存模型文件
-            fpname = '%s.%s.P.%d_%d_%f_%f.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
-            fqname = '%s.%s.Q.%d_%d_%f_%f.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
-            ftrname = '%s.%s.Q.%d_%d_%f_%f.train.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
-            ftename = '%s.%s.Q.%d_%d_%f_%f.test.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
+            fpname = '%s.%s.%d_%d_%f_%f.P.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
+            fqname = '%s.%s.%d_%d_%f_%f.Q.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
+            ftrname = '%s.%s.%d_%d_%f_%f.train.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
+            ftename = '%s.%s.%d_%d_%f_%f.test.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
+            fusers = '%s.%s.%d_%d_%f_%f.users.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
+            fitems = '%s.%s.%d_%d_%f_%f.items.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
             try:
                 f = open(fpname, "wb")
                 pickle.dump(self.P, f)
@@ -227,7 +249,20 @@ class SVD(object):
                 f.close()
             except Exception as e:
                 logging.error('%s 保存文件出错' % (ftename, ))
-        # return list(self.P, self.Q)
+
+            try:
+                f = open(fusers, "wb")
+                pickle.dump(self.users, f)
+                f.close()
+            except Exception as e:
+                logging.error('%s 保存文件出错' % (fusers, ))
+            try:
+                f = open(fitems, "wb")
+                pickle.dump(self.items, f)
+                f.close()
+            except Exception as e:
+                logging.error('%s 保存文件出错' % (fitems, ))
+        return self.P, self.Q
 
     '''
     评测函数
@@ -237,10 +272,9 @@ class SVD(object):
         """
         scores = []
         for row in self.test.itertuples():
-            user,item,rating = row[1],row[2],row[3]
+            user,item,rating = self.users.index(row[1]),self.items.index(row[2]),row[3]
             scores.append(
-                math.pow(rating - sum(self.P[user][f] * self.Q[item][f] for f in range(self.F)),
-                         2))
+                math.pow(rating - self.predict(user, item),2))
         return math.sqrt(sum(scores)/len(scores))
 
 if __name__ == '__main__':
@@ -274,8 +308,15 @@ if __name__ == '__main__':
     svd = SVD(fname,sep,f)
     svd.splitdata(M+key,key=key)
     svd.fit(N=N,alpha=alpha,_lambda=_lambda)
+    # te = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.test.dat'
+    # tr = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.train.dat'
+    # P = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.P.dat'
+    # Q = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.Q.dat'
+    # users = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.users.dat'
+    # items = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.items.dat'
+    # svd.loaddat(tr,te,P,Q,users,items)
     rmse = svd.rmse()
-    logging.info('SVD: F: %3d, N: %2.4f ,alpha: %2.4f ,lambda: %2.4f, RMSE: %2.4f' %
+    logging.info('SVD: F: %d, N: %d ,alpha: %f ,lambda: %f, RMSE: %f' %
                  (f, N, alpha, _lambda, rmse))
     exit()
 
