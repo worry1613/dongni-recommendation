@@ -14,41 +14,49 @@ import pickle
 from operator import itemgetter
 import numpy as np
 import pandas as pd
-import datetime
 import time
 
 import logging
+
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 # 兴趣因子数，降维后的特征数
 F = 10
 
+
 class SVD(object):
     """
     Funk-SVD
     """
+
     def __init__(self, fi, sep='::', f=F):
         """
         :param fi: 日志文件
         :param sep: 分隔符
         :param f: 兴趣因子数，降维的特征数，默认10
         """
-        self.P = {}     #P矩阵
-        self.Q = {}     #Q矩阵
+        self.P = {}  # P矩阵
+        self.Q = {}  # Q矩阵
         self.F = f
         self.file = fi
         logging.info('开始读取日志文件，%s ' % (fi,))
-        self.df = pd.read_csv(self.file, sep=sep, header=None, usecols=[0, 1, 2, 3], names=['userid', 'itemid','rating','timestamp'],
+        self.df = pd.read_csv(self.file, sep=sep, header=None, usecols=[0, 1, 2, 3],
+                              names=['userid', 'itemid', 'rating', 'timestamp'],
                               engine='python')
         logging.info('日志文件读取完成')
         # users 所有用户的id集合
-        self.users = []
+        self.users = pd.Series(self.df['userid']).unique().tolist()
         # items 所有物品的id集合
-        self.items = []
+        self.items = pd.Series(self.df['itemid']).unique().tolist()
+        logging.info('共%d条评分记录，用户共%d个，物品共%d个。' % (self.df.shape[0], len(self.users), len(self.items)))
+        for user in self.users:
+            self.P[user] = [random.random() / math.sqrt(F) for i in range(F)]
+        for item in self.items:
+            self.Q[item] = [random.random() / math.sqrt(F) for i in range(F)]
         self.test = {}
         self.train = {}
 
-    def predict(self,u,i):
+    def predict(self, u, i):
         """
         预测
         :param u: user id
@@ -58,16 +66,16 @@ class SVD(object):
         return sum(self.P[u][f] * self.Q[i][f] for f in range(self.F))
         # return float(np.dot(self.Q[i,:], self.P[u,:].T))
 
-    def recommend(self,u,i):
+    def recommend(self, u, i):
         """
         推荐
         :param u:
         :param i:
         :return:
         """
-        return self.predict(u,i)
+        return self.predict(u, i)
 
-    def savedat(self,cls):
+    def savedat(self, cls):
         """
         保存数据模型到指定文件
         :param cls:     类保存文件
@@ -81,30 +89,30 @@ class SVD(object):
         except Exception as e:
             logging.error('%s保存文件出错' % (cls,))
 
-    def splitdata(self,M=10,key=1):
+    def splitdata(self, M=10, key=1):
         """把数据切成训练集和测试集
         :param M:  数据将分成M份
         :param key:  选取第key份数据做为测试数据
         :return:
         """
-        logging.info('开始切分训练，测试数据集 %d:%d' % (M-key, key))
+        logging.info('开始切分训练，测试数据集 %d:%d' % (M - key, key))
         testids = random.sample(list(self.df.index), len(self.df.index) * key // M)
         trainids = set(self.df.index) - set(testids)
         self.test = self.df.loc[testids]
         self.train = self.df.loc[trainids]
         logging.info('切分训练，测试数据集完毕,训练数据%d条，测试数据%d条。' % (len(trainids), len(testids)))
 
-        self.users = pd.Series(self.df['userid']).unique().tolist()
-        # items 所有物品的id集合
-        self.items = pd.Series(self.df['itemid']).unique().tolist()
-        logging.info('共%d条评分记录，用户共%d个，物品共%d个。' % (self.train.shape[0], len(self.users), len(self.items)))
-
-        # self.P = np.matrix(np.random.rand(len(self.users), self.F), dtype=np.longfloat)
-        # self.Q = np.matrix(np.random.rand(len(self.items), self.F), dtype=np.longfloat)
-        for user in self.users:
-            self.P[user] = [random.random() / math.sqrt(F) for i in range(F)]
-        for item in self.items:
-            self.Q[item] = [random.random() / math.sqrt(F) for i in range(F)]
+        # self.users = pd.Series(self.df['userid']).unique().tolist()
+        # # items 所有物品的id集合
+        # self.items = pd.Series(self.df['itemid']).unique().tolist()
+        # logging.info('共%d条评分记录，用户共%d个，物品共%d个。' % (self.train.shape[0], len(self.users), len(self.items)))
+        #
+        # # self.P = np.matrix(np.random.rand(len(self.users), self.F), dtype=np.longfloat)
+        # # self.Q = np.matrix(np.random.rand(len(self.items), self.F), dtype=np.longfloat)
+        # for user in self.users:
+        #     self.P[user] = [random.random() / math.sqrt(F) for i in range(F)]
+        # for item in self.items:
+        #     self.Q[item] = [random.random() / math.sqrt(F) for i in range(F)]
 
     def fit(self, N=10, alpha=.1, _lambda=.1, out=1):
         """
@@ -117,11 +125,11 @@ class SVD(object):
         """
         slowRate = 0.90
         start = time.time()
-        logging.info('开始训练，F: %d ,N:%d ,alpha:%.4f ,lambda:%.4f。' % (self.F, N, alpha,_lambda))
+        logging.info('开始训练，F: %d ,N:%d ,alpha:%.4f ,lambda:%.4f。' % (self.F, N, alpha, _lambda))
         for step in range(0, N):
             logging.info('=====N:%d' % (step,))
             for row in self.train.itertuples():
-                u, i, rui = row[1],row[2],row[3]
+                u, i, rui = row[1], row[2], row[3]
                 # u, i, rui = self.users.index(row[1]),self.items.index(row[2]),row[3]
                 pui = self.predict(u, i)
                 eui = rui - pui
@@ -132,9 +140,9 @@ class SVD(object):
                     # self.P[u,f] += alpha * (self.Q[i,f] * eui - _lambda * self.P[u,f])
                     # self.Q[i,f] += alpha * (self.P[u,f] * eui - _lambda * self.Q[i,f])
             alpha *= slowRate
-        logging.info('训练结束，共耗时%d秒。' % (time.time()-start))
+        logging.info('训练结束，共耗时%d秒。' % (time.time() - start))
         if out:
-            #保存模型文件
+            # 保存模型文件
             fname = '%s.%s.%d_%d_%f_%f.class.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
             self.savedat(fname)
         return self.P, self.Q
@@ -142,31 +150,30 @@ class SVD(object):
     '''
     评测函数
     '''
+
     def rmse(self):
         """ 均方根误差RMSE
         """
         scores = []
         for row in self.test.itertuples():
-            user,item,rating = row[1],row[2],row[3]
+            user, item, rating = row[1], row[2], row[3]
             # user,item,rating = self.users.index(row[1]),self.items.index(row[2]),row[3]
-            scores.append(math.pow(rating - self.predict(user, item),2))
-        return math.sqrt(sum(scores)/len(scores))
+            scores.append(math.pow(rating - self.predict(user, item), 2))
+        return math.sqrt(sum(scores) / len(scores))
 
 
 class RSVD(SVD):
     """RSVD"""
+
     def __init__(self, fi, sep='::', f=F):
         SVD.__init__(self, fi, sep=sep, f=f)
         self.mu = np.mean(self.df['rating'])
-        self.bu = {}
-        self.bi = {}
+        self.bu = {row.Index: row.rating for row in self.df[['rating']].groupby(self.df['userid']).mean().itertuples()}
+        self.bi = {row.Index: row.rating for row in self.df[['rating']].groupby(self.df['itemid']).mean().itertuples()}
 
-    def splitdata(self,M=10,key=1):
-        SVD.splitdata(self, M=M, key=key)
-        for user in self.users:
-            self.bu[user] = 0
-        for item in self.items:
-            self.bi[item] = 0
+    # def splitdata(self,M=10,key=1):
+    #     SVD.splitdata(self, M=M, key=key)
+    #
 
     def predict(self, u, i):
         """
@@ -175,7 +182,7 @@ class RSVD(SVD):
         :param i: item id
         :return:
         """
-        return sum(self.P[u][f] * self.Q[i][f] for f in range(self.F))+self.mu+self.bu[u]+self.bi[i]
+        return sum(self.P[u][f] * self.Q[i][f] for f in range(self.F)) + self.mu + self.bu[u] + self.bi[i]
 
     def fit(self, N=10, alpha=.1, _lambda=.1, out=1):
         """
@@ -195,8 +202,8 @@ class RSVD(SVD):
                 u, i, rui = row[1], row[2], row[3]
                 pui = self.predict(u, i)
                 eui = rui - pui
-                self.bu[u] +=alpha*(eui-_lambda*self.bu[u])
-                self.bi[i] +=alpha*(eui-_lambda*self.bi[i])
+                self.bu[u] += alpha * (eui - _lambda * self.bu[u])
+                self.bi[i] += alpha * (eui - _lambda * self.bi[i])
                 for f in range(0, self.F):
                     self.P[u][f] += alpha * (self.Q[i][f] * eui - _lambda * self.P[u][f])
                     self.Q[i][f] += alpha * (self.P[u][f] * eui - _lambda * self.Q[i][f])
@@ -209,8 +216,95 @@ class RSVD(SVD):
         return self.P, self.Q
 
 
+class SVDPP(RSVD):
+    """SVD++"""
+
+    def __init__(self, fi, sep='::', f=F):
+        RSVD.__init__(self, fi, sep=sep, f=f)
+        # self.z = {}
+        self.y = {item: [random.random() / math.sqrt(F) for i in range(F)] for item in self.items}
+        self.train_ui = {}
+
+    def splitdata(self, M=10, key=1):
+        RSVD.splitdata(self, M=M, key=key)
+        for row in self.train.itertuples():
+            self.train_ui.setdefault(row[1], {})
+            self.train_ui[row[1]].setdefault(row[2], row[3])
+
+    def predict(self, u, i):
+        """
+        预测
+        :param u: user id
+        :param i: item id
+        :return:
+        """
+        nu12, nusy = self.gety(u)
+        s = self.mu + self.bu[u] + self.bi[i] + np.sum((np.array(self.P[u]) + np.array(nusy)) * np.array(self.Q[i]))
+        return s
+
+    def gety(self, user):
+        """
+        预测时用到的y相关数值计算
+        :param user:
+        :return: nu12    nu 负1/2次方
+                 nusy    sigma y[item] * nu12
+        """
+        nu12 = math.sqrt(len(self.train_ui[user]))
+        nusy = np.sum([self.y[item] for item, rui in self.train_ui[user].items()], axis=0) / nu12
+        return nu12, nusy
+
+    def getz(self, user):
+        """qi更新中Z计算"""
+        z = {user: self.P[user]}
+        nu = 1 / math.sqrt(len(self.train_ui[user]))
+        for i, rui in self.train_ui[user].items():
+            for f in range(self.F):
+                z[user][f] += self.y[i][f] * nu
+        return z
+
+    def fit(self, N=10, alpha=.1, _lambda=.1, out=1):
+        """
+        训练
+        :param N:    迭代次数，默认10
+        :param alpha:   a 参数，默认
+        :param _lambda: "入"参数 ,默认
+        :param out: 是否保存模型文件 ,默认1，输出
+        :return:
+        """
+        slowRate = 0.90
+        start = time.time()
+        logging.info('开始训练，F: %d ,N:%d ,alpha:%.4f ,lambda:%.4f。' % (self.F, N, alpha, _lambda))
+        for step in range(0, N):
+            logging.info('=====N:%d' % (step,))
+            for u, items in self.train_ui.items():
+                z = self.getz(u)
+                ru = 1 / math.sqrt(1.0 * len(items))
+                ys = [0] * self.F
+                for i, rui in items.items():
+                    pui = self.predict(u, i)
+                    eui = rui - pui
+
+                    self.bu[u] += alpha * (eui - _lambda * self.bu[u])
+                    self.bi[i] += alpha * (eui - _lambda * self.bi[i])
+                    for f in range(0, self.F):
+                        ys[f] += eui * self.Q[i][f] * ru
+                        self.P[u][f] += alpha * (self.Q[i][f] * eui - _lambda * self.P[u][f])
+                        self.Q[i][f] += alpha * (z[u][f] * eui - _lambda * self.Q[i][f])
+                for i, rui in items.items():
+                    for f in range(self.F):
+                        self.y[i][f] += alpha * (ys[f] - _lambda * self.y[i][f])
+
+            alpha *= slowRate
+        logging.info('训练结束，共耗时%d秒。' % (time.time() - start))
+        if out:
+            # 保存模型文件
+            fname = '%s.%s.%d_%d_%f_%f.class.dat' % (self.file, self.__class__.__name__, self.F, N, alpha, _lambda)
+            self.savedat(fname)
+        return self.P, self.Q
+
+
 if __name__ == '__main__':
-    clsmap = {1:SVD,2:RSVD,3:SVD,4:SVD,}
+    clsmap = {1: SVD, 2: RSVD, 3: SVDPP}
     parser = OptionParser()
     parser.add_option('-i', '--in', type=str, help='用户访问日志文件', dest='file')
     parser.add_option('--train', type=int, default=0.9, help='训练数据占比,默认0.9', dest='train')
@@ -236,7 +330,6 @@ if __name__ == '__main__':
     f = options.f
     m = options.m
 
-
     svd = None
     # 如果需要加载已经保存好的模型文件，取消注释
     # fclsname = '../../dataset/movielens/ml-1m/ratings.dat.SVD.10_5_0.011810_0.150000.class.dat'
@@ -247,9 +340,9 @@ if __name__ == '__main__':
     # except Exception as e:
     #     logging.error('%s文件不存在' % (fclsname,))
     if not svd:
-        svd = clsmap[m](fname,sep,f)
-        svd.splitdata(M+key,key=key)
-        svd.fit(N=N,alpha=alpha,_lambda=_lambda)
+        svd = clsmap[m](fname, sep, f)
+        svd.splitdata(M + key, key=key)
+        svd.fit(N=N, alpha=alpha, _lambda=_lambda)
     rmse = svd.rmse()
     logging.info('[%6s]F: %d, N: %d ,alpha: %f ,lambda: %f, RMSE: %f' %
                  (svd.__class__.__name__, f, N, alpha, _lambda, rmse))
