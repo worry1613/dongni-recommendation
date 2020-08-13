@@ -12,7 +12,6 @@ from sklearn.cluster import KMeans
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
-
 class Cluster(object):
     """
     聚类，用Kmeans算法实现
@@ -25,9 +24,8 @@ class Cluster(object):
         self.filemodel = fmodel
         self.result = None
         if (fin and fmodel) is not None:
-            self.__process
+            self.__process()
 
-    @property
     def __process(self):
         mw2v = models.Word2Vec.load(self.filemodel)
         vsize = mw2v.vector_size
