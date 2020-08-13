@@ -5,11 +5,8 @@
 # @CSDN   : http://blog.csdn.net/worryabout/
 
 from optparse import OptionParser
-import gensim
-from gensim import corpora, models, similarities
-from gensim.models import Word2Vec, KeyedVectors
+from gensim import models
 import logging
-import os.path
 import numpy as np
 from sklearn.cluster import KMeans
 
@@ -35,10 +32,11 @@ class Cluster(object):
         mw2v = models.Word2Vec.load(self.filemodel)
         vsize = mw2v.vector_size
 
+        # noinspection PyBroadException
         def wv(wvord):
             try:
                 return mw2v.wv[wvord]
-            except:
+            except Exception:
                 return np.zeros(vsize, dtype=int)
 
         lines = open(self.file).readlines()
@@ -55,6 +53,7 @@ class Cluster(object):
             exit(0)
         logging.info(f'{fout}聚类结果文件保存成功!')
 
+
 if __name__ == '__main__':
     '''
     python cluster.py -i ../../../data/新闻min_cw.txt 
@@ -69,7 +68,7 @@ if __name__ == '__main__':
     parser.add_option('-n', '--clusters', type=int, default=20, help='聚类的簇数,默认20', dest='clusters')
 
     options, args = parser.parse_args()
-    if not (options.wordsfile and  options.modelfile and options.kmeansfile):
+    if not (options.wordsfile and options.modelfile and options.kmeansfile):
         parser.print_help()
         exit()
 
