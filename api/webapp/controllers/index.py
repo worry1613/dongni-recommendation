@@ -11,10 +11,13 @@ import sys
 
 from webapp.basemodels import DBcahace
 from webapp.helpers.web_log import logger
+from config import KAFKA_SERVERS,KAFKA_TOPIC_ACTION,KAFKA_TOPIC_FEEDS
+from kafka import KafkaProducer
 
 db = DBcahace('toutiao')
 index = Blueprint('index', __name__)
 
+KafkaProducer = KafkaProducer(bootstrap_servers=KAFKA_SERVERS)
 
 # /feed?uid=xx&from=xx&size=10&category=xxx&algo=xxx
 @index.route('/feed', methods=['GET'])
@@ -63,8 +66,10 @@ def feed():
                     'asize': len(ret),
                     'feeds': ret
                     }
-        # info = {'user':uid,'algo':algo + ':' + str(c),'ids':[bytes.decode(r) for r in retsort]}
-        # logger.debug(json.dumps(info))
+        msg = {'user':uid,'algo':algo + ':' + str(c),'ids':[bytes.decode(r) for r in retsort]}
+        logger.debug(json.dumps(msg))
+        KafkaSendLog(KafkaProducer,KAFKA_TOPIC_FEEDS,msg)
+
         logger.debug('event: feed,user:%d, algo:%s, ids: %s' % (uid,
                                                                 algo + ':' + str(c),
                                                                 ','.join([r for r in retsort])))
@@ -106,7 +111,8 @@ def item(cid):
         vardict = {'wins': wins}
         db.updateuserwtc(u=uid, vardict=vardict)
         # ####
-        # info={'user':uid,'cid':cid,'ids':ids}
+        msg={'user':uid,'cid':cid,'ids':idsstr}
+        KafkaSendLog(KafkaProducer, KAFKA_TOPIC_ACTION, msg)
         logger.debug('event:click, user:%d, cid:%s ,ids:%s' % (uid, cid, idsstr))
         return jsonify(ret_dict)
 
@@ -221,3 +227,14 @@ def bandit(u, s, c, a, h):
     # 更新redis中的wins，trials,current
     # 返回ids 中的内容
     return ids, choice
+
+def KafkaSendLog(kafka, topic, log):
+    """
+    kafka发送分布式日志信息
+    :param kafka:
+    :param topic:
+    :param log:
+    :return:
+    """
+    msg = json.dumps(log)
+    kafka.send(topic, str.encode(msg))
