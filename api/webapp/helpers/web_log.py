@@ -7,7 +7,7 @@ logger 需求：
 3. 模块可以启用自己的日记域
 """
 
-from __future__ import unicode_literals
+# from __future__ import unicode_literals
 
 import inspect
 import os
@@ -21,7 +21,7 @@ LOG_PATH = SITE_ROOT + "/../log/"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
-handler = logging.FileHandler(LOG_PATH + "log.txt")
+handler = logging.FileHandler(LOG_PATH + "toutiao.log")
 handler.setLevel(logging.DEBUG)
 # formatter = logging.Formatter(
 #     '%(asctime)s $%(process)d--%(threadName)s %(name)s %(levelname)s %(filename)s: #%(lineno)d %(message)s')
